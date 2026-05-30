@@ -47,6 +47,12 @@ private struct TSBinanceConfig: Equatable {
     let environment: TSBinanceEnvironment
 }
 
+private enum TSBinanceConfigLoadState {
+    case configured(TSBinanceConfig)
+    case missing
+    case unavailable(message: String, detail: String)
+}
+
 private struct TSBinancePositionRisk: Decodable {
     let symbol: String
     let positionSide: String
@@ -359,8 +365,28 @@ final class TSBinancePositionService: NSObject {
     }
 
     private func configureAndStartIfNeeded(forceRestart: Bool) {
-        let newConfig = loadConfig()
+        let configState = loadConfig()
         displayOptions = loadDisplayOptions()
+
+        let newConfig: TSBinanceConfig?
+        switch configState {
+        case .configured(let config):
+            newConfig = config
+        case .missing:
+            newConfig = nil
+        case .unavailable(let message, let detail):
+            if let cachedConfig = currentConfig {
+                newConfig = cachedConfig
+                latestErrorMessage = detail
+            } else {
+                stopTimers()
+                disconnectCurrentWebSocket()
+                listenKey = nil
+                connectionState = .idle
+                updateState(snapshot: .failed(message), error: detail, entries: nil)
+                return
+            }
+        }
 
         guard isStarted else {
             currentConfig = newConfig
@@ -398,20 +424,21 @@ final class TSBinancePositionService: NSObject {
         connectUserStream()
     }
 
-    private func loadConfig() -> TSBinanceConfig? {
+    private func loadConfig() -> TSBinanceConfigLoadState {
         let credentialStore = TSBinanceCredentialStore.sharedStore()
-        guard
-            let apiKey = credentialStore.currentAPIKey()?.trimmingCharacters(in: .whitespacesAndNewlines),
-            !apiKey.isEmpty,
-            let secret = credentialStore.currentSecret()?.trimmingCharacters(in: .whitespacesAndNewlines),
-            !secret.isEmpty
-        else {
-            return nil
+        switch credentialStore.credentialState() {
+        case .configured(let apiKey, let secret):
+            let useTestnet = GetStandardUserDefaults().bool(forKey: HUDUserDefaultsKeyBinanceUseTestnet)
+            let environment: TSBinanceEnvironment = useTestnet ? .testnet : .mainnet
+            return .configured(TSBinanceConfig(apiKey: apiKey, secret: secret, environment: environment))
+        case .missing:
+            return .missing
+        case .temporarilyUnavailable(let error), .failed(let error):
+            return .unavailable(
+                message: NSLocalizedString("Binance credentials temporarily unavailable", comment: "TSBinancePositionService"),
+                detail: error.localizedDescription
+            )
         }
-
-        let useTestnet = GetStandardUserDefaults().bool(forKey: HUDUserDefaultsKeyBinanceUseTestnet)
-        let environment: TSBinanceEnvironment = useTestnet ? .testnet : .mainnet
-        return TSBinanceConfig(apiKey: apiKey, secret: secret, environment: environment)
     }
 
     private func updateState(snapshot: TSBinanceSnapshotState, error: String?, entries: [TSBinanceDisplayEntry]?) {

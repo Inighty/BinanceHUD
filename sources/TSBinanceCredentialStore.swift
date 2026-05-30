@@ -1,11 +1,26 @@
 import Foundation
 import Security
 
+enum TSBinanceCredentialState {
+    case configured(apiKey: String, secret: String)
+    case missing
+    case temporarilyUnavailable(NSError)
+    case failed(NSError)
+}
+
+private enum TSBinanceCredentialValueResult {
+    case success(String)
+    case notFound
+    case temporarilyUnavailable(NSError)
+    case failure(NSError)
+}
+
 @objcMembers
 final class TSBinanceCredentialStore: NSObject {
     private static let service = "com.inighty.binancehud.binance"
     private static let apiKeyAccount = "apiKey"
     private static let secretAccount = "secret"
+    private static let accessibility = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
 
     private static let sharedInstance = TSBinanceCredentialStore()
 
@@ -33,6 +48,29 @@ final class TSBinanceCredentialStore: NSObject {
 
     func currentSecret() -> String? {
         loadValue(forAccount: Self.secretAccount)
+    }
+
+    @nonobjc
+    func credentialState() -> TSBinanceCredentialState {
+        let apiKeyResult = loadValueResult(forAccount: Self.apiKeyAccount)
+        let secretResult = loadValueResult(forAccount: Self.secretAccount)
+
+        switch (apiKeyResult, secretResult) {
+        case (.success(let apiKey), .success(let secret)):
+            let trimmedAPIKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedSecret = secret.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedAPIKey.isEmpty, !trimmedSecret.isEmpty else {
+                return .missing
+            }
+            migrateAccessibilityIfNeeded(apiKey: trimmedAPIKey, secret: trimmedSecret)
+            return .configured(apiKey: trimmedAPIKey, secret: trimmedSecret)
+        case (.notFound, _), (_, .notFound):
+            return .missing
+        case (.temporarilyUnavailable(let error), _), (_, .temporarilyUnavailable(let error)):
+            return .temporarilyUnavailable(error)
+        case (.failure(let error), _), (_, .failure(let error)):
+            return .failed(error)
+        }
     }
 
     @objc(saveAPIKey:secret:error:)
@@ -73,6 +111,14 @@ final class TSBinanceCredentialStore: NSObject {
     }
 
     private func loadValue(forAccount account: String) -> String? {
+        guard case .success(let value) = loadValueResult(forAccount: account) else {
+            return nil
+        }
+
+        return value
+    }
+
+    private func loadValueResult(forAccount account: String) -> TSBinanceCredentialValueResult {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.service,
@@ -84,17 +130,28 @@ final class TSBinanceCredentialStore: NSObject {
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
         guard status == errSecSuccess else {
-            return nil
+            if status == errSecItemNotFound {
+                return .notFound
+            }
+            let error = keychainError(status: status)
+            if Self.isTemporarilyUnavailable(status) {
+                return .temporarilyUnavailable(error)
+            }
+            return .failure(error)
         }
 
         guard
             let data = item as? Data,
             let value = String(data: data, encoding: .utf8)
         else {
-            return nil
+            return .failure(NSError(
+                domain: "TSBinanceCredentialStore",
+                code: 3,
+                userInfo: [NSLocalizedDescriptionKey: "Unable to decode saved Binance credential."]
+            ))
         }
 
-        return value
+        return .success(value)
     }
 
     private func saveValue(_ value: String, forAccount account: String) throws {
@@ -107,6 +164,7 @@ final class TSBinanceCredentialStore: NSObject {
 
         let attributes: [String: Any] = [
             kSecValueData as String: data,
+            kSecAttrAccessible as String: Self.accessibility,
         ]
 
         let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
@@ -120,10 +178,16 @@ final class TSBinanceCredentialStore: NSObject {
 
         var addQuery = query
         addQuery[kSecValueData as String] = data
+        addQuery[kSecAttrAccessible as String] = Self.accessibility
         let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
         guard addStatus == errSecSuccess else {
             throw keychainError(status: addStatus)
         }
+    }
+
+    private func migrateAccessibilityIfNeeded(apiKey: String, secret: String) {
+        try? saveValue(apiKey, forAccount: Self.apiKeyAccount)
+        try? saveValue(secret, forAccount: Self.secretAccount)
     }
 
     private func deleteValue(forAccount account: String) throws {
@@ -146,5 +210,9 @@ final class TSBinanceCredentialStore: NSObject {
             code: Int(status),
             userInfo: [NSLocalizedDescriptionKey: message]
         )
+    }
+
+    private static func isTemporarilyUnavailable(_ status: OSStatus) -> Bool {
+        status == errSecInteractionNotAllowed || status == errSecNotAvailable
     }
 }

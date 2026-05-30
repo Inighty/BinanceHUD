@@ -12,6 +12,7 @@
 "Binance Environment" = "币安环境";
 "Binance Settings Error" = "币安设置错误";
 "Binance authentication failed" = "币安鉴权失败";
+"Binance credentials temporarily unavailable" = "币安凭据暂时不可用";
 "Binance network unavailable" = "币安网络不可用";
 "Cancel" = "取消";
 "Choose an action below." = "请选择以下操作。";

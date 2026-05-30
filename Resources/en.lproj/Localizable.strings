@@ -12,6 +12,7 @@
 "Binance Environment" = "Binance Environment";
 "Binance Settings Error" = "Binance Settings Error";
 "Binance authentication failed" = "Binance authentication failed";
+"Binance credentials temporarily unavailable" = "Binance credentials temporarily unavailable";
 "Binance network unavailable" = "Binance network unavailable";
 "Cancel" = "Cancel";
 "Choose an action below." = "Choose an action below.";

@@ -12,6 +12,7 @@
 "Binance Environment" = "Entorno de Binance";
 "Binance Settings Error" = "Error de configuración de Binance";
 "Binance authentication failed" = "Falló la autenticación de Binance";
+"Binance credentials temporarily unavailable" = "Las credenciales de Binance no están disponibles temporalmente";
 "Binance network unavailable" = "La red de Binance no está disponible";
 "Cancel" = "Cancelar";
 "Choose an action below." = "Elige una acción a continuación.";
