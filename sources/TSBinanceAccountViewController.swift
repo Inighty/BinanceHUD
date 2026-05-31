@@ -44,20 +44,14 @@ final class TSBinanceAccountViewController: UIViewController {
         secure: true
     )
 
-    private lazy var apiKeyPasteReceiver = TextFieldPasteReceiver(textField: apiKeyField)
-
-    private lazy var secretPasteReceiver = TextFieldPasteReceiver(textField: secretField)
-
     private lazy var apiKeyPasteControl: UIView = makePasteControl(
         for: apiKeyField,
-        pasteReceiver: apiKeyPasteReceiver,
         title: NSLocalizedString("Paste API Key", comment: "TSBinanceAccountViewController"),
         action: #selector(pasteAPIKey)
     )
 
     private lazy var secretPasteControl: UIView = makePasteControl(
         for: secretField,
-        pasteReceiver: secretPasteReceiver,
         title: NSLocalizedString("Paste API Secret", comment: "TSBinanceAccountViewController"),
         action: #selector(pasteSecret)
     )
@@ -109,8 +103,6 @@ final class TSBinanceAccountViewController: UIViewController {
         view.addGestureRecognizer(tapGesture)
 
         view.addSubview(scrollView)
-        view.addSubview(apiKeyPasteReceiver)
-        view.addSubview(secretPasteReceiver)
         scrollView.addSubview(contentStack)
 
         NSLayoutConstraint.activate([
@@ -118,16 +110,6 @@ final class TSBinanceAccountViewController: UIViewController {
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-            apiKeyPasteReceiver.widthAnchor.constraint(equalToConstant: 1),
-            apiKeyPasteReceiver.heightAnchor.constraint(equalToConstant: 1),
-            apiKeyPasteReceiver.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            apiKeyPasteReceiver.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-            secretPasteReceiver.widthAnchor.constraint(equalToConstant: 1),
-            secretPasteReceiver.heightAnchor.constraint(equalToConstant: 1),
-            secretPasteReceiver.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            secretPasteReceiver.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
             contentStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 24),
             contentStack.leadingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.leadingAnchor, constant: 20),
@@ -203,7 +185,7 @@ final class TSBinanceAccountViewController: UIViewController {
         textField.smartDashesType = .no
         textField.smartQuotesType = .no
         textField.keyboardType = .asciiCapable
-        textField.textContentType = nil
+        textField.textContentType = .oneTimeCode
         textField.isSecureTextEntry = secure
         textField.heightAnchor.constraint(equalToConstant: 44).isActive = true
         return textField
@@ -225,26 +207,7 @@ final class TSBinanceAccountViewController: UIViewController {
         return button
     }
 
-    private func makePasteControl(
-        for textField: UITextField,
-        pasteReceiver: TextFieldPasteReceiver,
-        title: String,
-        action: Selector
-    ) -> UIView {
-        if #available(iOS 16.0, *) {
-            var configuration = UIPasteControl.Configuration()
-            configuration.baseBackgroundColor = view.tintColor.withAlphaComponent(0.08)
-            configuration.baseForegroundColor = view.tintColor
-            configuration.cornerStyle = .large
-            configuration.displayMode = .iconAndLabel
-
-            let pasteControl = UIPasteControl(configuration: configuration)
-            pasteControl.translatesAutoresizingMaskIntoConstraints = false
-            pasteControl.target = pasteReceiver
-            pasteControl.heightAnchor.constraint(equalToConstant: 44).isActive = true
-            return pasteControl
-        }
-
+    private func makePasteControl(for _: UITextField, title: String, action: Selector) -> UIView {
         return makeActionButton(title: title, tintColor: view.tintColor, action: action)
     }
 
@@ -328,7 +291,7 @@ final class TSBinanceAccountViewController: UIViewController {
     private func pasteClipboardText(into textField: UITextField) {
         textField.becomeFirstResponder()
 
-        guard let clipboardText = UIPasteboard.general.string, !clipboardText.isEmpty else {
+        guard UIPasteboard.general.hasStrings, let clipboardText = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines), !clipboardText.isEmpty else {
             presentError(NSError(
                 domain: "TSBinanceAccountViewController",
                 code: 1,
@@ -352,60 +315,5 @@ final class TSBinanceAccountViewController: UIViewController {
             style: .cancel
         ))
         present(alertController, animated: true)
-    }
-}
-
-private final class TextFieldPasteReceiver: UITextView {
-    weak var textField: UITextField?
-
-    init(textField: UITextField) {
-        self.textField = textField
-        super.init(frame: .zero, textContainer: nil)
-        translatesAutoresizingMaskIntoConstraints = false
-        pasteConfiguration = UIPasteConfiguration(forAccepting: NSString.self)
-        autocapitalizationType = .none
-        autocorrectionType = .no
-        spellCheckingType = .no
-        smartDashesType = .no
-        smartQuotesType = .no
-        keyboardType = .asciiCapable
-        backgroundColor = .clear
-        textColor = .clear
-        tintColor = .clear
-        alpha = 0.01
-        isScrollEnabled = false
-        isAccessibilityElement = false
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(textDidChange),
-            name: UITextView.textDidChangeNotification,
-            object: self
-        )
-    }
-
-    deinit {
-        NotificationCenter.default.removeObserver(self)
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-    }
-
-    override func paste(_ sender: Any?) {
-        text = ""
-        super.paste(sender)
-    }
-
-    @objc
-    private func textDidChange() {
-        syncTextToTargetField()
-    }
-
-    private func syncTextToTargetField() {
-        let pastedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !pastedText.isEmpty else { return }
-        textField?.text = pastedText
-        text = ""
-        textField?.becomeFirstResponder()
     }
 }
