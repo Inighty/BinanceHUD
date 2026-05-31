@@ -294,33 +294,75 @@ final class TSBinanceAccountViewController: UIViewController {
             textField.isSecureTextEntry = false
         }
 
+        if let clipboardText = readPlainTextFromPasteboard() {
+            textField.text = clipboardText
+            textField.becomeFirstResponder()
+            if wasSecure {
+                DispatchQueue.main.async {
+                    textField.isSecureTextEntry = true
+                }
+            }
+            return
+        }
+
         let previousText = textField.text
         textField.becomeFirstResponder()
         textField.selectAll(nil)
 
-        let didSendPasteAction = UIApplication.shared.sendAction(
-            #selector(UIResponderStandardEditActions.paste(_:)),
-            to: textField,
-            from: self,
-            for: nil
-        )
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self, weak textField] in
+            guard let self = self, let textField = textField else { return }
 
-        if wasSecure {
-            DispatchQueue.main.async {
-                textField.isSecureTextEntry = true
+            let didSendPasteAction = UIApplication.shared.sendAction(
+                #selector(UIResponderStandardEditActions.paste(_:)),
+                to: textField,
+                from: self,
+                for: nil
+            )
+
+            if wasSecure {
+                DispatchQueue.main.async {
+                    textField.isSecureTextEntry = true
+                }
+            }
+
+            guard didSendPasteAction else {
+                self.presentPasteAccessError()
+                return
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self, weak textField] in
+                guard let self = self, let textField = textField else { return }
+                guard textField.text == previousText || textField.text?.isEmpty == true else { return }
+                self.presentPasteAccessError()
+            }
+        }
+    }
+
+    private func readPlainTextFromPasteboard() -> String? {
+        let pasteboard = UIPasteboard.general
+        let candidateTypes = [
+            "public.utf8-plain-text",
+            "public.plain-text",
+            "NSStringPboardType",
+            "com.apple.traditional-mac-plain-text"
+        ]
+
+        var candidates: [String] = []
+        if let string = pasteboard.string {
+            candidates.append(string)
+        }
+
+        for type in candidateTypes {
+            if let string = pasteboard.value(forPasteboardType: type) as? String {
+                candidates.append(string)
+            } else if let data = pasteboard.data(forPasteboardType: type), let string = String(data: data, encoding: .utf8) {
+                candidates.append(string)
             }
         }
 
-        guard didSendPasteAction else {
-            presentPasteAccessError()
-            return
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self, weak textField] in
-            guard let self = self, let textField = textField else { return }
-            guard textField.text == previousText || textField.text?.isEmpty == true else { return }
-            self.presentPasteAccessError()
-        }
+        return candidates
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty }
     }
 
     private func presentError(_ error: Error) {
