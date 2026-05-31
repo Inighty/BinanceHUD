@@ -351,6 +351,9 @@ final class TSBinanceAccountViewController: UIViewController {
         if let string = pasteboard.string {
             candidates.append(string)
         }
+        if let strings = pasteboard.strings {
+            candidates.append(contentsOf: strings)
+        }
 
         for type in candidateTypes {
             if let string = pasteboard.value(forPasteboardType: type) as? String {
@@ -358,17 +361,19 @@ final class TSBinanceAccountViewController: UIViewController {
             } else if let data = pasteboard.data(forPasteboardType: type), let string = String(data: data, encoding: .utf8) {
                 candidates.append(string)
             }
+
+            let itemSet = IndexSet(integersIn: 0..<max(pasteboard.numberOfItems, 1))
+            if let values = pasteboard.values(forPasteboardType: type, inItemSet: itemSet) {
+                candidates.append(contentsOf: values.compactMap { pasteboardValueToString($0) })
+            }
+            if let dataValues = pasteboard.data(forPasteboardType: type, inItemSet: itemSet) {
+                candidates.append(contentsOf: dataValues.compactMap { decodePasteboardData($0) })
+            }
         }
 
         for item in pasteboard.items {
             for value in item.values {
-                if let string = value as? String {
-                    candidates.append(string)
-                } else if let nsString = value as? NSString {
-                    candidates.append(nsString as String)
-                } else if let url = value as? URL {
-                    candidates.append(url.absoluteString)
-                } else if let data = value as? Data, let string = decodePasteboardData(data) {
+                if let string = pasteboardValueToString(value) {
                     candidates.append(string)
                 }
             }
@@ -377,6 +382,22 @@ final class TSBinanceAccountViewController: UIViewController {
         return candidates
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .first { !$0.isEmpty }
+    }
+
+    private func pasteboardValueToString(_ value: Any) -> String? {
+        if let string = value as? String {
+            return string
+        }
+        if let nsString = value as? NSString {
+            return nsString as String
+        }
+        if let url = value as? URL {
+            return url.absoluteString
+        }
+        if let data = value as? Data {
+            return decodePasteboardData(data)
+        }
+        return nil
     }
 
     private func decodePasteboardData(_ data: Data) -> String? {
@@ -436,8 +457,23 @@ final class TSBinanceAccountViewController: UIViewController {
             "Pasteboard diagnostics:",
             "hasStrings: \(pasteboard.hasStrings)",
             "stringVisible: \(pasteboard.string != nil)",
+            "stringsVisible: \(pasteboard.strings?.count ?? -1)",
+            "numberOfItems: \(pasteboard.numberOfItems)",
             "items: \(items.count)"
         ]
+
+        let candidateTypes = [
+            "public.utf8-plain-text",
+            "public.plain-text",
+            "NSStringPboardType",
+            "com.apple.traditional-mac-plain-text"
+        ]
+        let itemSet = IndexSet(integersIn: 0..<max(pasteboard.numberOfItems, 1))
+        for type in candidateTypes {
+            let valueCount = pasteboard.values(forPasteboardType: type, inItemSet: itemSet)?.count ?? 0
+            let dataCount = pasteboard.data(forPasteboardType: type, inItemSet: itemSet)?.count ?? 0
+            lines.append("\(type): values=\(valueCount), data=\(dataCount)")
+        }
 
         for (index, item) in items.prefix(3).enumerated() {
             let details = item
