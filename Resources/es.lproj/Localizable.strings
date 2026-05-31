@@ -24,6 +24,7 @@
 "Clear Saved Credentials" = "Borrar credenciales guardadas";
 "Clipboard is empty or paste access was denied." = "El portapapeles está vacío o se denegó el acceso para pegar.";
 "Configured" = "Configurado";
+"Copy Diagnostics" = "Copiar diagnóstico";
 "Data Source" = "Datos";
 "Deactivate the Binance futures position HUD." = "Desactiva el HUD de posiciones de futuros de Binance.";
 "Developer Area" = "Área de desarrollo";
@@ -55,6 +56,7 @@
 "Open Settings to add API Key and Secret" = "Abre Ajustes para añadir la API Key y el Secret";
 "Open Settings" = "Abrir Ajustes";
 "Pass-through" = "Pass-through";
+"Pasteboard Diagnostics" = "Diagnóstico del portapapeles";
 "Paste API Key" = "Pegar API Key";
 "Paste API Secret" = "Pegar API Secret";
 "Position Fields" = "Campos de posición";
@@ -65,6 +67,7 @@
 "Save" = "Guardar";
 "Settings" = "Ajustes";
 "Show Current Price" = "Mostrar precio actual";
+"Show Diagnostics" = "Mostrar diagnóstico";
 "Show Entry Price" = "Mostrar precio de entrada";
 "Show Floating PnL" = "Mostrar PnL flotante";
 "Show Floating PnL Rate" = "Mostrar tasa de PnL flotante";

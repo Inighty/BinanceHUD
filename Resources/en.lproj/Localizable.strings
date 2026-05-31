@@ -24,6 +24,7 @@
 "Clear Saved Credentials" = "Clear Saved Credentials";
 "Clipboard is empty or paste access was denied." = "Clipboard is empty or paste access was denied.";
 "Configured" = "Configured";
+"Copy Diagnostics" = "Copy Diagnostics";
 "Data Source" = "Data Source";
 "Deactivate the Binance futures position HUD." = "Deactivate the Binance futures position HUD.";
 "Developer Area" = "Developer Area";
@@ -55,6 +56,7 @@
 "Open Settings to add API Key and Secret" = "Open Settings to add API Key and Secret";
 "Open Settings" = "Open Settings";
 "Pass-through" = "Pass-through";
+"Pasteboard Diagnostics" = "Pasteboard Diagnostics";
 "Paste API Key" = "Paste API Key";
 "Paste API Secret" = "Paste API Secret";
 "Position Fields" = "Position Fields";
@@ -65,6 +67,7 @@
 "Save" = "Save";
 "Settings" = "Settings";
 "Show Current Price" = "Show Current Price";
+"Show Diagnostics" = "Show Diagnostics";
 "Show Entry Price" = "Show Entry Price";
 "Show Floating PnL" = "Show Floating PnL";
 "Show Floating PnL Rate" = "Show Floating PnL Rate";

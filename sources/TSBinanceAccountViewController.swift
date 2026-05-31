@@ -425,9 +425,10 @@ final class TSBinanceAccountViewController: UIViewController {
     }
 
     private func presentPasteAccessError() {
+        let diagnostics = pasteboardDiagnosticSummary()
         let message = [
             NSLocalizedString("Unable to paste. In iOS Settings, open BinanceHUD and set Paste from Other Apps to Ask or Allow.", comment: "TSBinanceAccountViewController"),
-            pasteboardDiagnosticSummary()
+            diagnostics
         ].joined(separator: "\n\n")
 
         let alertController = UIAlertController(
@@ -445,6 +446,20 @@ final class TSBinanceAccountViewController: UIViewController {
             handler: { _ in
                 guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
                 UIApplication.shared.open(settingsURL, options: [:])
+            }
+        ))
+        alertController.addAction(UIAlertAction(
+            title: NSLocalizedString("Show Diagnostics", comment: "TSBinanceAccountViewController"),
+            style: .default,
+            handler: { [weak self] _ in
+                self?.presentPasteDiagnostics(diagnostics)
+            }
+        ))
+        alertController.addAction(UIAlertAction(
+            title: NSLocalizedString("Copy Diagnostics", comment: "TSBinanceAccountViewController"),
+            style: .default,
+            handler: { _ in
+                UIPasteboard.general.string = diagnostics
             }
         ))
         present(alertController, animated: true)
@@ -499,5 +514,72 @@ final class TSBinanceAccountViewController: UIViewController {
         }
 
         return lines.joined(separator: "\n")
+    }
+
+    private func presentPasteDiagnostics(_ diagnostics: String) {
+        let diagnosticsViewController = PasteDiagnosticsViewController(text: diagnostics)
+        let navigationController = UINavigationController(rootViewController: diagnosticsViewController)
+        navigationController.modalPresentationStyle = .formSheet
+        present(navigationController, animated: true)
+    }
+}
+
+private final class PasteDiagnosticsViewController: UIViewController {
+    private let text: String
+    private let textView = UITextView()
+
+    init(text: String) {
+        self.text = text
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        self.text = ""
+        super.init(coder: coder)
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        title = NSLocalizedString("Pasteboard Diagnostics", comment: "PasteDiagnosticsViewController")
+        view.backgroundColor = .systemBackground
+
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            barButtonSystemItem: .done,
+            target: self,
+            action: #selector(close)
+        )
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: NSLocalizedString("Copy Diagnostics", comment: "PasteDiagnosticsViewController"),
+            style: .plain,
+            target: self,
+            action: #selector(copyDiagnostics)
+        )
+
+        textView.translatesAutoresizingMaskIntoConstraints = false
+        textView.text = text
+        textView.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.alwaysBounceVertical = true
+        textView.backgroundColor = .secondarySystemBackground
+        view.addSubview(textView)
+
+        NSLayoutConstraint.activate([
+            textView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+            textView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            textView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            textView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+        ])
+    }
+
+    @objc
+    private func close() {
+        dismiss(animated: true)
+    }
+
+    @objc
+    private func copyDiagnostics() {
+        UIPasteboard.general.string = text
     }
 }
