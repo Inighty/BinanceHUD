@@ -44,13 +44,9 @@ final class TSBinanceAccountViewController: UIViewController {
         secure: true
     )
 
-    private lazy var apiKeyPasteReceiver = TextFieldPasteReceiver(textField: apiKeyField) { [weak self] error in
-        self?.presentError(error)
-    }
+    private lazy var apiKeyPasteReceiver = TextFieldPasteReceiver(textField: apiKeyField)
 
-    private lazy var secretPasteReceiver = TextFieldPasteReceiver(textField: secretField) { [weak self] error in
-        self?.presentError(error)
-    }
+    private lazy var secretPasteReceiver = TextFieldPasteReceiver(textField: secretField)
 
     private lazy var apiKeyPasteControl: UIView = makePasteControl(
         for: apiKeyField,
@@ -113,6 +109,8 @@ final class TSBinanceAccountViewController: UIViewController {
         view.addGestureRecognizer(tapGesture)
 
         view.addSubview(scrollView)
+        view.addSubview(apiKeyPasteReceiver)
+        view.addSubview(secretPasteReceiver)
         scrollView.addSubview(contentStack)
 
         NSLayoutConstraint.activate([
@@ -120,6 +118,16 @@ final class TSBinanceAccountViewController: UIViewController {
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            apiKeyPasteReceiver.widthAnchor.constraint(equalToConstant: 1),
+            apiKeyPasteReceiver.heightAnchor.constraint(equalToConstant: 1),
+            apiKeyPasteReceiver.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            apiKeyPasteReceiver.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            secretPasteReceiver.widthAnchor.constraint(equalToConstant: 1),
+            secretPasteReceiver.heightAnchor.constraint(equalToConstant: 1),
+            secretPasteReceiver.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            secretPasteReceiver.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
             contentStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 24),
             contentStack.leadingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.leadingAnchor, constant: 20),
@@ -347,53 +355,57 @@ final class TSBinanceAccountViewController: UIViewController {
     }
 }
 
-private final class TextFieldPasteReceiver: NSObject, UIPasteConfigurationSupporting {
+private final class TextFieldPasteReceiver: UITextView {
     weak var textField: UITextField?
-    var pasteConfiguration: UIPasteConfiguration?
 
-    private let onError: (Error) -> Void
-
-    init(textField: UITextField, onError: @escaping (Error) -> Void) {
+    init(textField: UITextField) {
         self.textField = textField
-        self.onError = onError
-        self.pasteConfiguration = UIPasteConfiguration(forAccepting: NSString.self)
-        super.init()
+        super.init(frame: .zero, textContainer: nil)
+        translatesAutoresizingMaskIntoConstraints = false
+        pasteConfiguration = UIPasteConfiguration(forAccepting: NSString.self)
+        autocapitalizationType = .none
+        autocorrectionType = .no
+        spellCheckingType = .no
+        smartDashesType = .no
+        smartQuotesType = .no
+        keyboardType = .asciiCapable
+        backgroundColor = .clear
+        textColor = .clear
+        tintColor = .clear
+        alpha = 0.01
+        isScrollEnabled = false
+        isAccessibilityElement = false
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(textDidChange),
+            name: UITextView.textDidChangeNotification,
+            object: self
+        )
     }
 
-    func paste(itemProviders: [NSItemProvider]) {
-        guard let provider = itemProviders.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else {
-            reportPasteFailure()
-            return
-        }
-
-        provider.loadObject(ofClass: NSString.self) { [weak self] object, _ in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                let text: String?
-                if let string = object as? String {
-                    text = string
-                } else if let nsString = object as? NSString {
-                    text = nsString as String
-                } else {
-                    text = nil
-                }
-
-                guard let pastedText = text, !pastedText.isEmpty else {
-                    self.reportPasteFailure()
-                    return
-                }
-
-                self.textField?.text = pastedText
-                self.textField?.becomeFirstResponder()
-            }
-        }
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
-    private func reportPasteFailure() {
-        onError(NSError(
-            domain: "TSBinanceAccountViewController",
-            code: 2,
-            userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("Clipboard is empty or paste access was denied.", comment: "TSBinanceAccountViewController")]
-        ))
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+
+    override func paste(_ sender: Any?) {
+        text = ""
+        super.paste(sender)
+    }
+
+    @objc
+    private func textDidChange() {
+        syncTextToTargetField()
+    }
+
+    private func syncTextToTargetField() {
+        let pastedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !pastedText.isEmpty else { return }
+        textField?.text = pastedText
+        text = ""
+        textField?.becomeFirstResponder()
     }
 }
