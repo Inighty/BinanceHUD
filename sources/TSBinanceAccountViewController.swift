@@ -41,7 +41,7 @@ final class TSBinanceAccountViewController: UIViewController {
 
     private lazy var secretField: UITextField = makeTextField(
         placeholder: NSLocalizedString("API Secret", comment: "TSBinanceAccountViewController"),
-        secure: true
+        secure: false
     )
 
     private lazy var apiKeyPasteControl: UIView = makePasteControl(
@@ -57,7 +57,7 @@ final class TSBinanceAccountViewController: UIViewController {
     )
 
     private lazy var secretVisibilityButton: UIButton = makeActionButton(
-        title: NSLocalizedString("Show Secret", comment: "TSBinanceAccountViewController"),
+        title: NSLocalizedString("Hide Secret", comment: "TSBinanceAccountViewController"),
         tintColor: view.tintColor,
         action: #selector(toggleSecretVisibility)
     )
@@ -289,9 +289,28 @@ final class TSBinanceAccountViewController: UIViewController {
     }
 
     private func pasteClipboardText(into textField: UITextField) {
-        textField.becomeFirstResponder()
+        let wasSecure = textField.isSecureTextEntry
+        if wasSecure {
+            textField.isSecureTextEntry = false
+        }
 
-        guard UIPasteboard.general.hasStrings, let clipboardText = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines), !clipboardText.isEmpty else {
+        textField.becomeFirstResponder()
+        textField.selectAll(nil)
+
+        let didSendPasteAction = UIApplication.shared.sendAction(
+            #selector(UIResponderStandardEditActions.paste(_:)),
+            to: textField,
+            from: self,
+            for: nil
+        )
+
+        if wasSecure {
+            DispatchQueue.main.async {
+                textField.isSecureTextEntry = true
+            }
+        }
+
+        guard didSendPasteAction else {
             presentError(NSError(
                 domain: "TSBinanceAccountViewController",
                 code: 1,
@@ -299,8 +318,6 @@ final class TSBinanceAccountViewController: UIViewController {
             ))
             return
         }
-
-        textField.text = clipboardText
     }
 
     private func presentError(_ error: Error) {
