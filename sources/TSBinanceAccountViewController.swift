@@ -208,7 +208,21 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         return button
     }
 
-    private func makePasteControl(for _: UITextField, title: String, action: Selector) -> UIView {
+    private func makePasteControl(for textField: UITextField, title: String, action: Selector) -> UIView {
+        if #available(iOS 16.0, *) {
+            var configuration = UIPasteControl.Configuration()
+            configuration.baseBackgroundColor = view.tintColor.withAlphaComponent(0.08)
+            configuration.baseForegroundColor = view.tintColor
+            configuration.cornerStyle = .large
+            configuration.displayMode = .iconAndLabel
+
+            let pasteControl = UIPasteControl(configuration: configuration)
+            pasteControl.translatesAutoresizingMaskIntoConstraints = false
+            pasteControl.target = textField
+            pasteControl.heightAnchor.constraint(equalToConstant: 44).isActive = true
+            return pasteControl
+        }
+
         return makeActionButton(title: title, tintColor: view.tintColor, action: action)
     }
 
