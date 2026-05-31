@@ -360,9 +360,33 @@ final class TSBinanceAccountViewController: UIViewController {
             }
         }
 
+        for item in pasteboard.items {
+            for value in item.values {
+                if let string = value as? String {
+                    candidates.append(string)
+                } else if let nsString = value as? NSString {
+                    candidates.append(nsString as String)
+                } else if let url = value as? URL {
+                    candidates.append(url.absoluteString)
+                } else if let data = value as? Data, let string = decodePasteboardData(data) {
+                    candidates.append(string)
+                }
+            }
+        }
+
         return candidates
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .first { !$0.isEmpty }
+    }
+
+    private func decodePasteboardData(_ data: Data) -> String? {
+        let encodings: [String.Encoding] = [.utf8, .utf16, .utf16LittleEndian, .utf16BigEndian, .ascii]
+        for encoding in encodings {
+            if let string = String(data: data, encoding: encoding), !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return string
+            }
+        }
+        return nil
     }
 
     private func presentError(_ error: Error) {
@@ -380,9 +404,14 @@ final class TSBinanceAccountViewController: UIViewController {
     }
 
     private func presentPasteAccessError() {
+        let message = [
+            NSLocalizedString("Unable to paste. In iOS Settings, open BinanceHUD and set Paste from Other Apps to Ask or Allow.", comment: "TSBinanceAccountViewController"),
+            pasteboardDiagnosticSummary()
+        ].joined(separator: "\n\n")
+
         let alertController = UIAlertController(
             title: NSLocalizedString("Binance Settings Error", comment: "TSBinanceAccountViewController"),
-            message: NSLocalizedString("Unable to paste. In iOS Settings, open BinanceHUD and set Paste from Other Apps to Ask or Allow.", comment: "TSBinanceAccountViewController"),
+            message: message,
             preferredStyle: .alert
         )
         alertController.addAction(UIAlertAction(
@@ -398,5 +427,41 @@ final class TSBinanceAccountViewController: UIViewController {
             }
         ))
         present(alertController, animated: true)
+    }
+
+    private func pasteboardDiagnosticSummary() -> String {
+        let pasteboard = UIPasteboard.general
+        let items = pasteboard.items
+        var lines = [
+            "Pasteboard diagnostics:",
+            "hasStrings: \(pasteboard.hasStrings)",
+            "stringVisible: \(pasteboard.string != nil)",
+            "items: \(items.count)"
+        ]
+
+        for (index, item) in items.prefix(3).enumerated() {
+            let details = item
+                .keys
+                .sorted()
+                .map { key -> String in
+                    guard let value = item[key] else {
+                        return "\(key)=nil"
+                    }
+                    if let data = value as? Data {
+                        return "\(key)=Data(\(data.count))"
+                    }
+                    if let string = value as? String {
+                        return "\(key)=String(\(string.count))"
+                    }
+                    if let nsString = value as? NSString {
+                        return "\(key)=NSString(\(nsString.length))"
+                    }
+                    return "\(key)=\(String(describing: type(of: value)))"
+                }
+                .joined(separator: ", ")
+            lines.append("item[\(index)]: \(details)")
+        }
+
+        return lines.joined(separator: "\n")
     }
 }
