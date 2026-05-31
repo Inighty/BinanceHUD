@@ -16,6 +16,12 @@ static const char *(*dyn_get_boot_uuid)(void) = NULL;
 static char *(*dyn_jbrootpath)(const char *path, char *resolvedPath) = NULL;
 static char *(*dyn_rootfspath)(const char *path, char *resolvedPath) = NULL;
 
+const char *libroot_dyn_get_root_prefix(void);
+const char *libroot_dyn_get_jbroot_prefix(void);
+const char *libroot_dyn_get_boot_uuid(void);
+char *libroot_dyn_rootfspath(const char *path, char *resolvedPath);
+char *libroot_dyn_jbrootpath(const char *path, char *resolvedPath);
+
 #if TARGET_OS_SIMULATOR
 
 static const char *libroot_get_root_prefix_fallback(void)
