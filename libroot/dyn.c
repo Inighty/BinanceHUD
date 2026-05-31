@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 
-#include "TSRootCompat.h"
+#include "../supports/TSRootCompat.h"
 
 static const char *(*dyn_get_root_prefix)(void) = NULL;
 static const char *(*dyn_get_jbroot_prefix)(void) = NULL;
