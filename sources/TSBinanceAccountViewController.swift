@@ -5,7 +5,7 @@ import UIKit
 }
 
 @objcMembers
-final class TSBinanceAccountViewController: UIViewController {
+final class TSBinanceAccountViewController: UIViewController, UIGestureRecognizerDelegate {
     weak var delegate: TSBinanceAccountViewControllerDelegate?
 
     private let store = TSBinanceCredentialStore.sharedStore()
@@ -100,6 +100,7 @@ final class TSBinanceAccountViewController: UIViewController {
 
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
         tapGesture.cancelsTouchesInView = false
+        tapGesture.delegate = self
         view.addGestureRecognizer(tapGesture)
 
         view.addSubview(scrollView)
@@ -214,6 +215,20 @@ final class TSBinanceAccountViewController: UIViewController {
     @objc
     private func dismissKeyboard() {
         view.endEditing(true)
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        var touchedView: UIView? = touch.view
+        while let currentView = touchedView {
+            if currentView is UIControl || currentView is UITextView {
+                return false
+            }
+            if currentView === apiKeyField || currentView === secretField {
+                return false
+            }
+            touchedView = currentView.superview
+        }
+        return true
     }
 
     @objc
