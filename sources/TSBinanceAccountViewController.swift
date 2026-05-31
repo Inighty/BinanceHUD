@@ -44,14 +44,24 @@ final class TSBinanceAccountViewController: UIViewController {
         secure: true
     )
 
+    private lazy var apiKeyPasteReceiver = TextFieldPasteReceiver(textField: apiKeyField) { [weak self] error in
+        self?.presentError(error)
+    }
+
+    private lazy var secretPasteReceiver = TextFieldPasteReceiver(textField: secretField) { [weak self] error in
+        self?.presentError(error)
+    }
+
     private lazy var apiKeyPasteControl: UIView = makePasteControl(
         for: apiKeyField,
+        pasteReceiver: apiKeyPasteReceiver,
         title: NSLocalizedString("Paste API Key", comment: "TSBinanceAccountViewController"),
         action: #selector(pasteAPIKey)
     )
 
     private lazy var secretPasteControl: UIView = makePasteControl(
         for: secretField,
+        pasteReceiver: secretPasteReceiver,
         title: NSLocalizedString("Paste API Secret", comment: "TSBinanceAccountViewController"),
         action: #selector(pasteSecret)
     )
@@ -207,7 +217,12 @@ final class TSBinanceAccountViewController: UIViewController {
         return button
     }
 
-    private func makePasteControl(for textField: UITextField, title: String, action: Selector) -> UIView {
+    private func makePasteControl(
+        for textField: UITextField,
+        pasteReceiver: TextFieldPasteReceiver,
+        title: String,
+        action: Selector
+    ) -> UIView {
         if #available(iOS 16.0, *) {
             var configuration = UIPasteControl.Configuration()
             configuration.baseBackgroundColor = view.tintColor.withAlphaComponent(0.08)
@@ -217,7 +232,7 @@ final class TSBinanceAccountViewController: UIViewController {
 
             let pasteControl = UIPasteControl(configuration: configuration)
             pasteControl.translatesAutoresizingMaskIntoConstraints = false
-            pasteControl.target = textField
+            pasteControl.target = pasteReceiver
             pasteControl.heightAnchor.constraint(equalToConstant: 44).isActive = true
             return pasteControl
         }
@@ -329,5 +344,56 @@ final class TSBinanceAccountViewController: UIViewController {
             style: .cancel
         ))
         present(alertController, animated: true)
+    }
+}
+
+private final class TextFieldPasteReceiver: NSObject, UIPasteConfigurationSupporting {
+    weak var textField: UITextField?
+    var pasteConfiguration: UIPasteConfiguration?
+
+    private let onError: (Error) -> Void
+
+    init(textField: UITextField, onError: @escaping (Error) -> Void) {
+        self.textField = textField
+        self.onError = onError
+        self.pasteConfiguration = UIPasteConfiguration(forAccepting: NSString.self)
+        super.init()
+    }
+
+    func paste(itemProviders: [NSItemProvider]) {
+        guard let provider = itemProviders.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else {
+            reportPasteFailure()
+            return
+        }
+
+        provider.loadObject(ofClass: NSString.self) { [weak self] object, _ in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                let text: String?
+                if let string = object as? String {
+                    text = string
+                } else if let nsString = object as? NSString {
+                    text = nsString as String
+                } else {
+                    text = nil
+                }
+
+                guard let pastedText = text, !pastedText.isEmpty else {
+                    self.reportPasteFailure()
+                    return
+                }
+
+                self.textField?.text = pastedText
+                self.textField?.becomeFirstResponder()
+            }
+        }
+    }
+
+    private func reportPasteFailure() {
+        onError(NSError(
+            domain: "TSBinanceAccountViewController",
+            code: 2,
+            userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("Clipboard is empty or paste access was denied.", comment: "TSBinanceAccountViewController")]
+        ))
     }
 }
