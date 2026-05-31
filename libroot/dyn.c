@@ -5,12 +5,10 @@
 #include <sys/param.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
+#include <unistd.h>
 
-#include <libroot.h>
-
-#if THEOS_PACKAGE_SCHEME_ROOTHIDE
-#include <roothide.h>
-#endif
+#include "TSRootCompat.h"
 
 static const char *(*dyn_get_root_prefix)(void) = NULL;
 static const char *(*dyn_get_jbroot_prefix)(void) = NULL;
