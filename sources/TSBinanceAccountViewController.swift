@@ -294,6 +294,7 @@ final class TSBinanceAccountViewController: UIViewController {
             textField.isSecureTextEntry = false
         }
 
+        let previousText = textField.text
         textField.becomeFirstResponder()
         textField.selectAll(nil)
 
@@ -311,12 +312,14 @@ final class TSBinanceAccountViewController: UIViewController {
         }
 
         guard didSendPasteAction else {
-            presentError(NSError(
-                domain: "TSBinanceAccountViewController",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("Clipboard is empty or paste access was denied.", comment: "TSBinanceAccountViewController")]
-            ))
+            presentPasteAccessError()
             return
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self, weak textField] in
+            guard let self = self, let textField = textField else { return }
+            guard textField.text == previousText || textField.text?.isEmpty == true else { return }
+            self.presentPasteAccessError()
         }
     }
 
@@ -330,6 +333,27 @@ final class TSBinanceAccountViewController: UIViewController {
         alertController.addAction(UIAlertAction(
             title: NSLocalizedString("Dismiss", comment: "TSBinanceAccountViewController"),
             style: .cancel
+        ))
+        present(alertController, animated: true)
+    }
+
+    private func presentPasteAccessError() {
+        let alertController = UIAlertController(
+            title: NSLocalizedString("Binance Settings Error", comment: "TSBinanceAccountViewController"),
+            message: NSLocalizedString("Unable to paste. In iOS Settings, open BinanceHUD and set Paste from Other Apps to Ask or Allow.", comment: "TSBinanceAccountViewController"),
+            preferredStyle: .alert
+        )
+        alertController.addAction(UIAlertAction(
+            title: NSLocalizedString("Dismiss", comment: "TSBinanceAccountViewController"),
+            style: .cancel
+        ))
+        alertController.addAction(UIAlertAction(
+            title: NSLocalizedString("Open Settings", comment: "TSBinanceAccountViewController"),
+            style: .default,
+            handler: { _ in
+                guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+                UIApplication.shared.open(settingsURL, options: [:])
+            }
         ))
         present(alertController, animated: true)
     }

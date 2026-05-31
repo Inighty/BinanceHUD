@@ -53,6 +53,7 @@
 "ON" = "ON";
 "Open HUD" = "Open HUD";
 "Open Settings to add API Key and Secret" = "Open Settings to add API Key and Secret";
+"Open Settings" = "Open Settings";
 "Pass-through" = "Pass-through";
 "Paste API Key" = "Paste API Key";
 "Paste API Secret" = "Paste API Secret";
@@ -88,6 +89,7 @@
 "Unable to decode Binance account" = "Unable to decode Binance account";
 "Unable to decode Binance positions" = "Unable to decode Binance positions";
 "Unable to load Binance positions" = "Unable to load Binance positions";
+"Unable to paste. In iOS Settings, open BinanceHUD and set Paste from Other Apps to Ask or Allow." = "Unable to paste. In iOS Settings, open BinanceHUD and set Paste from Other Apps to Ask or Allow.";
 "Utility" = "Utility";
 "You can quit this app now.\nThe HUD will persist on your screen." = "You can quit this app now.\nThe HUD will persist on your screen.";
 "more" = "more";

@@ -53,6 +53,7 @@
 "ON" = "开启";
 "Open HUD" = "打开悬浮窗";
 "Open Settings to add API Key and Secret" = "请前往设置添加 API Key 和 Secret";
+"Open Settings" = "打开设置";
 "Pass-through" = "触摸穿透";
 "Paste API Key" = "粘贴 API Key";
 "Paste API Secret" = "粘贴 API Secret";
@@ -88,6 +89,7 @@
 "Unable to decode Binance account" = "无法解析币安账户数据";
 "Unable to decode Binance positions" = "无法解析币安持仓数据";
 "Unable to load Binance positions" = "无法加载币安持仓";
+"Unable to paste. In iOS Settings, open BinanceHUD and set Paste from Other Apps to Ask or Allow." = "无法粘贴。请在 iOS 设置中打开 BinanceHUD，将“从其他 App 粘贴”设为“询问”或“允许”。";
 "Utility" = "工具";
 "You can quit this app now.\nThe HUD will persist on your screen." = "现在可以退出应用了。\n悬浮窗会继续显示在屏幕上。";
 "more" = "更多";
