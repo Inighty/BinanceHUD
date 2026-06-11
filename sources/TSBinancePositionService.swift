@@ -1217,7 +1217,7 @@ final class TSBinancePositionService: NSObject {
     }
 
     private func trimDecimalString(_ string: String) -> String {
-        guard var value = decimal(from: string) else {
+        guard let value = decimal(from: string) else {
             return string
         }
         return trimDecimal(value)

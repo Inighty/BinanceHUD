@@ -237,7 +237,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         action: Selector
     ) -> UIView {
         if #available(iOS 16.0, *) {
-            var configuration = UIPasteControl.Configuration()
+            let configuration = UIPasteControl.Configuration()
             configuration.baseBackgroundColor = view.tintColor.withAlphaComponent(0.08)
             configuration.baseForegroundColor = view.tintColor
             configuration.cornerStyle = .large
@@ -640,9 +640,8 @@ private final class PasteDiagnosticsViewController: UIViewController {
     }
 }
 
-private final class TextFieldPasteReceiver: UIView, UIPasteConfigurationSupporting {
+private final class TextFieldPasteReceiver: UIView {
     weak var textField: UITextField?
-    var pasteConfiguration: UIPasteConfiguration?
 
     private let onError: (Error) -> Void
     private let textTypeIdentifiers = [
@@ -670,14 +669,14 @@ private final class TextFieldPasteReceiver: UIView, UIPasteConfigurationSupporti
         pasteConfiguration = UIPasteConfiguration(acceptableTypeIdentifiers: textTypeIdentifiers)
     }
 
-    func canPaste(_ itemProviders: [NSItemProvider]) -> Bool {
+    override func canPaste(_ itemProviders: [NSItemProvider]) -> Bool {
         itemProviders.contains { provider in
             provider.canLoadObject(ofClass: NSString.self) ||
                 textTypeIdentifiers.contains(where: { provider.hasItemConformingToTypeIdentifier($0) })
         }
     }
 
-    func paste(itemProviders: [NSItemProvider]) {
+    override func paste(itemProviders: [NSItemProvider]) {
         guard let provider = itemProviders.first(where: { provider in
             provider.canLoadObject(ofClass: NSString.self) ||
                 textTypeIdentifiers.contains(where: { provider.hasItemConformingToTypeIdentifier($0) })
