@@ -231,6 +231,79 @@ final class TSBinancePositionService: NSObject {
         TSBinancePositionServiceDidUpdateNotificationName.rawValue
     }
 
+    func diagnosticsText() -> String {
+        var lines: [String] = []
+
+        workQueue.sync {
+            lines.append("Binance position diagnostics:")
+            if let config = currentConfig {
+                lines.append("environment: \(config.environment.rawValue)")
+            } else {
+                lines.append("environment: notConfigured")
+            }
+            lines.append("displayMode: \(displayOptions.displayMode.rawValue)")
+            lines.append("refreshInterval: \(Int(displayOptions.snapshotRefreshInterval))s")
+            lines.append("focusSymbol: \(displayOptions.focusSymbol.isEmpty ? "<none>" : displayOptions.focusSymbol)")
+            lines.append("snapshotState: \(diagnosticSnapshotStateText(snapshotState))")
+            lines.append("connectionState: \(diagnosticConnectionStateText(connectionState))")
+            lines.append("lastUpdatedAt: \(lastUpdatedAt?.description ?? "<never>")")
+            if let latestErrorMessage, !latestErrorMessage.isEmpty {
+                lines.append("latestError: \(latestErrorMessage)")
+            }
+
+            if let summary = accountSummary {
+                lines.append("accountSummary:")
+                lines.append("  totalEquity: \(trimDecimal(summary.totalEquity))")
+                lines.append("  walletBalance: \(trimDecimal(summary.totalWalletBalance))")
+                lines.append("  totalUnrealizedProfit: \(trimDecimal(summary.totalUnrealizedProfit))")
+                lines.append("  totalInitialMargin: \(trimDecimal(summary.totalInitialMargin))")
+            }
+
+            lines.append("displayEntries: \(displayEntries.count)")
+            for (index, entry) in displayEntries.enumerated() {
+                lines.append([
+                    "  display[\(index)]",
+                    "raw=\(entry.rawSymbol)",
+                    "symbol=\(entry.symbol)",
+                    "side=\(entry.side)",
+                    "qty=\(entry.quantity)",
+                    "entry=\(entry.entryPrice)",
+                    "mark=\(entry.markPrice)",
+                    "pnl=\(entry.pnl)",
+                    "roe=\(entry.roe ?? "<none>")"
+                ].joined(separator: " "))
+            }
+
+            if displayOptions.focusSymbol.isEmpty, let first = displayEntries.first {
+                lines.append("centeredDefault: \(first.rawSymbol) \(first.side) pnl=\(first.pnl)")
+            }
+
+            lines.append("positionSnapshots: \(positionSnapshots.count)")
+            for (index, position) in positionSnapshots.enumerated() {
+                lines.append([
+                    "  position[\(index)]",
+                    "raw=\(position.rawSymbol)",
+                    "symbol=\(position.symbol)",
+                    "side=\(position.side)",
+                    "qty=\(trimDecimal(quantityMagnitude(from: position.quantity)))",
+                    "signedQty=\(trimDecimal(position.quantity))",
+                    "entry=\(trimDecimal(position.entryPrice))",
+                    "mark=\(trimDecimal(position.markPrice))",
+                    "pnl=\(trimDecimal(position.pnl))",
+                    "notional=\(trimDecimal(position.notional))",
+                    "initialMargin=\(position.initialMargin.map { trimDecimal($0) } ?? "<none>")"
+                ].joined(separator: " "))
+            }
+
+            lines.append("notes:")
+            lines.append("  pnl uses Binance /fapi/v3/positionRisk unRealizedProfit when present.")
+            lines.append("  mark uses REST snapshot plus public mark-price stream updates.")
+            lines.append("  centered HUD without focus shows display[0].")
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
     @objc(hudAttributedTextForCentered:focused:fontSize:fontWeight:)
     func hudAttributedText(forCentered centered: Bool, focused: Bool, fontSize: CGFloat, fontWeight: CGFloat) -> NSAttributedString {
         var state: TSBinanceSnapshotState = .notConfigured
@@ -488,6 +561,32 @@ final class TSBinancePositionService: NSObject {
         latestErrorMessage = error
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: TSBinancePositionServiceDidUpdateNotificationName, object: nil)
+        }
+    }
+
+    private func diagnosticSnapshotStateText(_ state: TSBinanceSnapshotState) -> String {
+        switch state {
+        case .notConfigured:
+            return "notConfigured"
+        case .loading:
+            return "loading"
+        case .ready:
+            return "ready"
+        case .failed(let message):
+            return "failed(\(message))"
+        }
+    }
+
+    private func diagnosticConnectionStateText(_ state: TSBinanceConnectionState) -> String {
+        switch state {
+        case .idle:
+            return "idle"
+        case .connecting:
+            return "connecting"
+        case .connected:
+            return "connected"
+        case .reconnecting:
+            return "reconnecting"
         }
     }
 

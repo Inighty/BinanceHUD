@@ -78,6 +78,12 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         action: #selector(clearSavedCredentials)
     )
 
+    private lazy var positionDiagnosticsButton: UIButton = makeActionButton(
+        title: NSLocalizedString("Show Position Diagnostics", comment: "TSBinanceAccountViewController"),
+        tintColor: view.tintColor,
+        action: #selector(showPositionDiagnostics)
+    )
+
     private var hasStoredCredentials: Bool {
         store.hasCredentials()
     }
@@ -152,6 +158,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
             buttons: [secretPasteControl, secretVisibilityButton]
         ))
         if hasStoredCredentials {
+            contentStack.addArrangedSubview(positionDiagnosticsButton)
             contentStack.addArrangedSubview(clearCredentialsButton)
         }
     }
@@ -330,6 +337,15 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
             }
         ))
         present(alertController, animated: true)
+    }
+
+    @objc
+    private func showPositionDiagnostics() {
+        let diagnostics = TSBinancePositionService.sharedService().diagnosticsText()
+        presentDiagnostics(
+            diagnostics,
+            title: NSLocalizedString("Binance Diagnostics", comment: "TSBinanceAccountViewController")
+        )
     }
 
     private func performClearCredentials() {
@@ -573,31 +589,41 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
     }
 
     private func presentPasteDiagnostics(_ diagnostics: String) {
-        let diagnosticsViewController = PasteDiagnosticsViewController(text: diagnostics)
+        presentDiagnostics(
+            diagnostics,
+            title: NSLocalizedString("Pasteboard Diagnostics", comment: "TSBinanceAccountViewController")
+        )
+    }
+
+    private func presentDiagnostics(_ diagnostics: String, title: String) {
+        let diagnosticsViewController = DiagnosticsViewController(text: diagnostics, title: title)
         let navigationController = UINavigationController(rootViewController: diagnosticsViewController)
         navigationController.modalPresentationStyle = .formSheet
         present(navigationController, animated: true)
     }
 }
 
-private final class PasteDiagnosticsViewController: UIViewController {
+private final class DiagnosticsViewController: UIViewController {
     private let text: String
+    private let displayTitle: String
     private let textView = UITextView()
 
-    init(text: String) {
+    init(text: String, title: String) {
         self.text = text
+        self.displayTitle = title
         super.init(nibName: nil, bundle: nil)
     }
 
     required init?(coder: NSCoder) {
         self.text = ""
+        self.displayTitle = ""
         super.init(coder: coder)
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        title = NSLocalizedString("Pasteboard Diagnostics", comment: "PasteDiagnosticsViewController")
+        title = displayTitle
         view.backgroundColor = .systemBackground
 
         navigationItem.leftBarButtonItem = UIBarButtonItem(
