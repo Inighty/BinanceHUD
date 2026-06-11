@@ -171,7 +171,7 @@ enum TSSettingsIndex: Int, CaseIterable {
     private static func binanceRefreshIntervalSubtitle() -> String {
         let defaults = GetStandardUserDefaults()
         let interval = defaults.integer(forKey: HUDUserDefaultsKeyBinanceRefreshInterval)
-        let resolvedInterval = interval > 0 ? interval : 15
+        let resolvedInterval = interval > 0 ? interval : 5
         return String(format: NSLocalizedString("%ds", comment: "TSSettingsIndex"), resolvedInterval)
     }
 

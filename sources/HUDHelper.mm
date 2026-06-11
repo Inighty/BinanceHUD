@@ -229,7 +229,7 @@ NSUserDefaults *GetStandardUserDefaults(void)
             HUDUserDefaultsKeyBinanceShowEntryPrice: @NO,
             HUDUserDefaultsKeyBinanceShowPnL: @YES,
             HUDUserDefaultsKeyBinanceShowROE: @NO,
-            HUDUserDefaultsKeyBinanceRefreshInterval: @15,
+            HUDUserDefaultsKeyBinanceRefreshInterval: @5,
             HUDUserDefaultsKeyBinanceFocusSymbol: @"",
             HUDUserDefaultsKeyBinanceDisplayMode: @"positions",
             HUDUserDefaultsKeyBinanceShowTotalEquity: @YES,

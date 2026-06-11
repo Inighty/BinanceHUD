@@ -132,7 +132,6 @@ private struct TSBinancePositionSnapshot {
     let entryPrice: Decimal
     let markPrice: Decimal
     let pnl: Decimal
-    let pnlOffset: Decimal
     let notional: Decimal
     let initialMargin: Decimal?
 }
@@ -162,7 +161,7 @@ private struct TSBinanceDisplayOptions {
 @objcMembers
 final class TSBinancePositionService: NSObject {
     private static let sharedInstance = TSBinancePositionService()
-    private static let defaultSnapshotRefreshInterval: TimeInterval = 15
+    private static let defaultSnapshotRefreshInterval: TimeInterval = 5
     private static let keepAliveInterval: TimeInterval = 50 * 60
     private static let reconnectBaseDelay: TimeInterval = 3
     private static let maxReconnectDelay: TimeInterval = 30
@@ -647,7 +646,6 @@ final class TSBinancePositionService: NSObject {
             )
             let apiPnL = decimal(from: position.unRealizedProfit)
             let pnl = apiPnL ?? calculatedPnL
-            let pnlOffset = pnl - calculatedPnL
             let notional = absDecimal(from: position.notional) ?? abs(quantity)
             let initialMargin = absDecimal(from: position.initialMargin)
 
@@ -659,7 +657,6 @@ final class TSBinancePositionService: NSObject {
                 entryPrice: entryPrice,
                 markPrice: markPrice,
                 pnl: pnl,
-                pnlOffset: pnlOffset,
                 notional: notional,
                 initialMargin: initialMargin
             )
@@ -688,13 +685,10 @@ final class TSBinancePositionService: NSObject {
             )
         }
         .sorted {
-            if $0.sortValue == $1.sortValue {
-                if $0.symbol == $1.symbol {
-                    return $0.side < $1.side
-                }
-                return $0.symbol < $1.symbol
+            if $0.symbol == $1.symbol {
+                return $0.side < $1.side
             }
-            return $0.sortValue > $1.sortValue
+            return $0.symbol < $1.symbol
         }
     }
 
@@ -856,12 +850,6 @@ final class TSBinancePositionService: NSObject {
             }
 
             changed = true
-            let pnl = unrealizedPnL(
-                quantity: position.quantity,
-                side: position.side,
-                entryPrice: position.entryPrice,
-                markPrice: markPrice
-            ) + position.pnlOffset
             return TSBinancePositionSnapshot(
                 rawSymbol: position.rawSymbol,
                 symbol: position.symbol,
@@ -869,8 +857,7 @@ final class TSBinancePositionService: NSObject {
                 quantity: position.quantity,
                 entryPrice: position.entryPrice,
                 markPrice: markPrice,
-                pnl: pnl,
-                pnlOffset: position.pnlOffset,
+                pnl: position.pnl,
                 notional: position.notional,
                 initialMargin: position.initialMargin
             )

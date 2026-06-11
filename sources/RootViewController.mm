@@ -734,7 +734,7 @@ static BOOL RemoveObsoleteHUDKeys(NSMutableDictionary *userDefaults)
     NSArray<NSNumber *> *options = BinanceRefreshIntervalOptions();
     NSInteger currentInterval = [GetStandardUserDefaults() integerForKey:HUDUserDefaultsKeyBinanceRefreshInterval];
     if (currentInterval <= 0) {
-        currentInterval = 15;
+        currentInterval = 5;
     }
 
     UIAlertController *picker = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Refresh Interval", nil)
