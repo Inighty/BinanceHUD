@@ -25,6 +25,15 @@ private enum TSBinanceEnvironment: String, Equatable {
             return URL(string: "wss://fstream.binancefuture.com/private")!
         }
     }
+
+    var markPriceStreamURL: URL {
+        switch self {
+        case .mainnet:
+            return URL(string: "wss://fstream.binance.com/market/ws/!markPrice@arr@1s")!
+        case .testnet:
+            return URL(string: "wss://fstream.binancefuture.com/market/ws/!markPrice@arr@1s")!
+        }
+    }
 }
 
 private enum TSBinanceConnectionState {
@@ -83,6 +92,16 @@ private struct TSBinanceListenKeyResponse: Decodable {
     let listenKey: String
 }
 
+private struct TSBinanceMarkPriceUpdate: Decodable {
+    let symbol: String
+    let markPrice: String
+
+    enum CodingKeys: String, CodingKey {
+        case symbol = "s"
+        case markPrice = "p"
+    }
+}
+
 private struct TSBinanceStreamEnvelope: Decodable {
     let eventType: String?
     let eventTime: Int64?
@@ -103,6 +122,18 @@ private struct TSBinanceDisplayEntry {
     let entryPrice: String
     let markPrice: String
     let sortValue: Decimal
+}
+
+private struct TSBinancePositionSnapshot {
+    let rawSymbol: String
+    let symbol: String
+    let side: String
+    let quantity: Decimal
+    let entryPrice: Decimal
+    let markPrice: Decimal
+    let pnl: Decimal
+    let notional: Decimal
+    let initialMargin: Decimal?
 }
 
 private enum TSBinanceDisplayMode: String {
@@ -148,6 +179,7 @@ final class TSBinancePositionService: NSObject {
     private var connectionState: TSBinanceConnectionState = .idle
     private var currentConfig: TSBinanceConfig?
     private var displayOptions = TSBinancePositionService.defaultDisplayOptions()
+    private var positionSnapshots: [TSBinancePositionSnapshot] = []
     private var displayEntries: [TSBinanceDisplayEntry] = []
     private var accountSummary: TSBinanceAccountSummary?
     private var lastUpdatedAt: Date?
@@ -156,6 +188,7 @@ final class TSBinancePositionService: NSObject {
 
     private var listenKey: String?
     private var webSocketTask: URLSessionWebSocketTask?
+    private var markPriceWebSocketTask: URLSessionWebSocketTask?
     private var keepAliveTimer: DispatchSourceTimer?
     private var snapshotTimer: DispatchSourceTimer?
     private var reconnectWorkItem: DispatchWorkItem?
@@ -181,6 +214,7 @@ final class TSBinancePositionService: NSObject {
             self.cancelSnapshotRefresh()
             self.stopTimers()
             self.disconnectCurrentWebSocket()
+            self.disconnectMarkPriceWebSocket()
             self.listenKey = nil
             self.connectionState = .idle
         }
@@ -381,6 +415,7 @@ final class TSBinancePositionService: NSObject {
             } else {
                 stopTimers()
                 disconnectCurrentWebSocket()
+                disconnectMarkPriceWebSocket()
                 listenKey = nil
                 connectionState = .idle
                 updateState(snapshot: .failed(message), error: detail, entries: nil)
@@ -398,8 +433,10 @@ final class TSBinancePositionService: NSObject {
             currentConfig = nil
             stopTimers()
             disconnectCurrentWebSocket()
+            disconnectMarkPriceWebSocket()
             listenKey = nil
             connectionState = .idle
+            positionSnapshots = []
             displayEntries = []
             updateState(snapshot: .notConfigured, error: nil, entries: [])
             return
@@ -414,6 +451,7 @@ final class TSBinancePositionService: NSObject {
 
         stopTimers()
         disconnectCurrentWebSocket()
+        disconnectMarkPriceWebSocket()
         listenKey = nil
         reconnectAttempt = 0
         connectionState = .idle
@@ -499,9 +537,12 @@ final class TSBinancePositionService: NSObject {
                 case .success(let data):
                     do {
                         let positions = try JSONDecoder().decode([TSBinancePositionRisk].self, from: data)
-                        let entries = self.makeDisplayEntries(from: positions)
+                        let snapshots = self.makePositionSnapshots(from: positions)
+                        let entries = self.makeDisplayEntries(from: snapshots)
+                        self.positionSnapshots = snapshots
                         self.lastUpdatedAt = Date()
                         self.updateState(snapshot: .ready, error: nil, entries: entries)
+                        self.startMarkPriceStreamIfNeeded(config: config)
                     } catch {
                         self.latestErrorMessage = error.localizedDescription
                         if self.displayEntries.isEmpty {
@@ -575,7 +616,7 @@ final class TSBinancePositionService: NSObject {
         }
     }
 
-    private func makeDisplayEntries(from positions: [TSBinancePositionRisk]) -> [TSBinanceDisplayEntry] {
+    private func makePositionSnapshots(from positions: [TSBinancePositionRisk]) -> [TSBinancePositionSnapshot] {
         positions.compactMap { position in
             guard let quantity = decimal(from: position.positionAmt), quantity != 0 else {
                 return nil
@@ -590,26 +631,55 @@ final class TSBinancePositionService: NSObject {
                 side = quantity >= 0 ? "L" : "S"
             }
 
-            let pnl = decimal(from: position.unRealizedProfit) ?? 0
+            guard
+                let entryPrice = decimal(from: position.entryPrice),
+                let markPrice = decimal(from: position.markPrice)
+            else {
+                return nil
+            }
+
+            let pnl = decimal(from: position.unRealizedProfit) ?? unrealizedPnL(
+                quantity: quantity,
+                side: side,
+                entryPrice: entryPrice,
+                markPrice: markPrice
+            )
             let notional = absDecimal(from: position.notional) ?? abs(quantity)
             let initialMargin = absDecimal(from: position.initialMargin)
+
+            return TSBinancePositionSnapshot(
+                rawSymbol: position.symbol,
+                symbol: self.displaySymbol(for: position.symbol),
+                side: side,
+                quantity: quantity,
+                entryPrice: entryPrice,
+                markPrice: markPrice,
+                pnl: pnl,
+                notional: notional,
+                initialMargin: initialMargin
+            )
+        }
+    }
+
+    private func makeDisplayEntries(from snapshots: [TSBinancePositionSnapshot]) -> [TSBinanceDisplayEntry] {
+        snapshots.map { position in
             let roe: String?
-            if let initialMargin, initialMargin != 0 {
-                roe = signedString(for: (pnl / initialMargin) * 100, suffix: "%")
+            if let initialMargin = position.initialMargin, initialMargin != 0 {
+                roe = signedString(for: (position.pnl / initialMargin) * 100, suffix: "%")
             } else {
                 roe = nil
             }
 
             return TSBinanceDisplayEntry(
-                rawSymbol: position.symbol,
-                symbol: self.displaySymbol(for: position.symbol),
-                side: side,
-                quantity: self.trimDecimal(self.quantityMagnitude(from: quantity)),
-                pnl: signedString(for: pnl, suffix: ""),
+                rawSymbol: position.rawSymbol,
+                symbol: position.symbol,
+                side: position.side,
+                quantity: self.trimDecimal(self.quantityMagnitude(from: position.quantity)),
+                pnl: signedString(for: position.pnl, suffix: ""),
                 roe: roe,
-                entryPrice: trimDecimalString(position.entryPrice),
-                markPrice: trimDecimalString(position.markPrice),
-                sortValue: notional
+                entryPrice: trimDecimal(position.entryPrice),
+                markPrice: trimDecimal(position.markPrice),
+                sortValue: position.notional
             )
         }
         .sorted {
@@ -621,6 +691,14 @@ final class TSBinancePositionService: NSObject {
             }
             return $0.sortValue > $1.sortValue
         }
+    }
+
+    private func unrealizedPnL(quantity: Decimal, side: String, entryPrice: Decimal, markPrice: Decimal) -> Decimal {
+        let quantityMagnitude = abs(quantity)
+        if side == "S" {
+            return (entryPrice - markPrice) * quantityMagnitude
+        }
+        return (markPrice - entryPrice) * quantityMagnitude
     }
 
     private func connectUserStream() {
@@ -704,6 +782,109 @@ final class TSBinancePositionService: NSObject {
             reconnectUserStream()
         default:
             break
+        }
+    }
+
+    private func startMarkPriceStreamIfNeeded(config: TSBinanceConfig) {
+        guard !positionSnapshots.isEmpty else {
+            disconnectMarkPriceWebSocket()
+            return
+        }
+        guard markPriceWebSocketTask == nil else {
+            return
+        }
+
+        let task = session.webSocketTask(with: config.environment.markPriceStreamURL)
+        markPriceWebSocketTask = task
+        task.resume()
+        receiveNextMarkPriceMessage(for: task, config: config)
+    }
+
+    private func receiveNextMarkPriceMessage(for task: URLSessionWebSocketTask, config: TSBinanceConfig) {
+        task.receive { [weak self] result in
+            guard let self else { return }
+            self.workQueue.async {
+                guard task == self.markPriceWebSocketTask, config == self.currentConfig else { return }
+
+                switch result {
+                case .success(let message):
+                    self.handleMarkPriceMessage(message)
+                    self.receiveNextMarkPriceMessage(for: task, config: config)
+                case .failure:
+                    self.handleMarkPriceConnectionFailure(config: config)
+                }
+            }
+        }
+    }
+
+    private func handleMarkPriceMessage(_ message: URLSessionWebSocketTask.Message) {
+        let data: Data
+        switch message {
+        case .data(let payload):
+            data = payload
+        case .string(let text):
+            data = Data(text.utf8)
+        @unknown default:
+            return
+        }
+
+        let updates: [TSBinanceMarkPriceUpdate]
+        if let array = try? JSONDecoder().decode([TSBinanceMarkPriceUpdate].self, from: data) {
+            updates = array
+        } else if let single = try? JSONDecoder().decode(TSBinanceMarkPriceUpdate.self, from: data) {
+            updates = [single]
+        } else {
+            return
+        }
+
+        var priceBySymbol: [String: Decimal] = [:]
+        for update in updates {
+            guard let price = decimal(from: update.markPrice) else { continue }
+            priceBySymbol[update.symbol] = price
+        }
+        guard !priceBySymbol.isEmpty else { return }
+
+        var changed = false
+        positionSnapshots = positionSnapshots.map { position in
+            guard let markPrice = priceBySymbol[position.rawSymbol], markPrice != position.markPrice else {
+                return position
+            }
+
+            changed = true
+            let pnl = unrealizedPnL(
+                quantity: position.quantity,
+                side: position.side,
+                entryPrice: position.entryPrice,
+                markPrice: markPrice
+            )
+            let notional = abs(markPrice * position.quantity)
+            return TSBinancePositionSnapshot(
+                rawSymbol: position.rawSymbol,
+                symbol: position.symbol,
+                side: position.side,
+                quantity: position.quantity,
+                entryPrice: position.entryPrice,
+                markPrice: markPrice,
+                pnl: pnl,
+                notional: notional,
+                initialMargin: position.initialMargin
+            )
+        }
+
+        guard changed else { return }
+        displayEntries = makeDisplayEntries(from: positionSnapshots)
+        lastUpdatedAt = Date()
+        postUpdateNotification()
+    }
+
+    private func handleMarkPriceConnectionFailure(config: TSBinanceConfig) {
+        markPriceWebSocketTask = nil
+        guard isStarted, config == currentConfig, !positionSnapshots.isEmpty else {
+            return
+        }
+        workQueue.asyncAfter(deadline: .now() + Self.reconnectBaseDelay) { [weak self] in
+            guard let self else { return }
+            self.startMarkPriceStreamIfNeeded(config: config)
         }
     }
 
@@ -810,6 +991,11 @@ final class TSBinancePositionService: NSObject {
     private func disconnectCurrentWebSocket() {
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
         webSocketTask = nil
+    }
+
+    private func disconnectMarkPriceWebSocket() {
+        markPriceWebSocketTask?.cancel(with: .normalClosure, reason: nil)
+        markPriceWebSocketTask = nil
     }
 
     private func postUpdateNotification() {
