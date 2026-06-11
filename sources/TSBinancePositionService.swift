@@ -132,6 +132,7 @@ private struct TSBinancePositionSnapshot {
     let entryPrice: Decimal
     let markPrice: Decimal
     let pnl: Decimal
+    let pnlOffset: Decimal
     let notional: Decimal
     let initialMargin: Decimal?
 }
@@ -638,12 +639,15 @@ final class TSBinancePositionService: NSObject {
                 return nil
             }
 
-            let pnl = decimal(from: position.unRealizedProfit) ?? unrealizedPnL(
+            let calculatedPnL = unrealizedPnL(
                 quantity: quantity,
                 side: side,
                 entryPrice: entryPrice,
                 markPrice: markPrice
             )
+            let apiPnL = decimal(from: position.unRealizedProfit)
+            let pnl = apiPnL ?? calculatedPnL
+            let pnlOffset = pnl - calculatedPnL
             let notional = absDecimal(from: position.notional) ?? abs(quantity)
             let initialMargin = absDecimal(from: position.initialMargin)
 
@@ -655,6 +659,7 @@ final class TSBinancePositionService: NSObject {
                 entryPrice: entryPrice,
                 markPrice: markPrice,
                 pnl: pnl,
+                pnlOffset: pnlOffset,
                 notional: notional,
                 initialMargin: initialMargin
             )
@@ -856,8 +861,7 @@ final class TSBinancePositionService: NSObject {
                 side: position.side,
                 entryPrice: position.entryPrice,
                 markPrice: markPrice
-            )
-            let notional = abs(markPrice * position.quantity)
+            ) + position.pnlOffset
             return TSBinancePositionSnapshot(
                 rawSymbol: position.rawSymbol,
                 symbol: position.symbol,
@@ -866,7 +870,8 @@ final class TSBinancePositionService: NSObject {
                 entryPrice: position.entryPrice,
                 markPrice: markPrice,
                 pnl: pnl,
-                notional: notional,
+                pnlOffset: position.pnlOffset,
+                notional: position.notional,
                 initialMargin: position.initialMargin
             )
         }
