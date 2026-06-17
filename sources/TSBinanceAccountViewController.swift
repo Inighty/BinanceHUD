@@ -318,6 +318,10 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
     }
 
     private func pasteClipboardText(into textField: UITextField) {
+        pasteClipboardText(into: textField, attempt: 0)
+    }
+
+    private func pasteClipboardText(into textField: UITextField, attempt: Int) {
         let wasSecure = textField.isSecureTextEntry
         if wasSecure {
             textField.isSecureTextEntry = false
@@ -338,15 +342,10 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         textField.becomeFirstResponder()
         textField.selectAll(nil)
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self, weak textField] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self, weak textField] in
             guard let self = self, let textField = textField else { return }
 
-            let didSendPasteAction = UIApplication.shared.sendAction(
-                #selector(UIResponderStandardEditActions.paste(_:)),
-                to: textField,
-                from: self,
-                for: nil
-            )
+            textField.paste(self)
 
             if wasSecure {
                 DispatchQueue.main.async {
@@ -354,14 +353,18 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
                 }
             }
 
-            guard didSendPasteAction else {
-                self.presentPasteAccessError()
-                return
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self, weak textField] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self, weak textField] in
                 guard let self = self, let textField = textField else { return }
                 guard textField.text == previousText || textField.text?.isEmpty == true else { return }
+
+                if attempt < 3 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self, weak textField] in
+                        guard let self = self, let textField = textField else { return }
+                        self.pasteClipboardText(into: textField, attempt: attempt + 1)
+                    }
+                    return
+                }
+
                 self.presentPasteAccessError()
             }
         }
