@@ -9,6 +9,13 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
     weak var delegate: TSBinanceAccountViewControllerDelegate?
 
     private let store = TSBinanceCredentialStore.sharedStore()
+    private let pasteTextTypeIdentifiers = [
+        "public.utf8-plain-text",
+        "public.plain-text",
+        "public.text",
+        "NSStringPboardType",
+        "com.apple.traditional-mac-plain-text"
+    ]
 
     private lazy var scrollView: UIScrollView = {
         let view = UIScrollView()
@@ -45,11 +52,13 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
     )
 
     private lazy var apiKeyPasteControl: UIView = makePasteControl(
+        for: apiKeyField,
         title: NSLocalizedString("Paste API Key", comment: "TSBinanceAccountViewController"),
         action: #selector(pasteAPIKey)
     )
 
     private lazy var secretPasteControl: UIView = makePasteControl(
+        for: secretField,
         title: NSLocalizedString("Paste API Secret", comment: "TSBinanceAccountViewController"),
         action: #selector(pasteSecret)
     )
@@ -94,8 +103,8 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
             action: #selector(saveCredentials)
         )
 
-        apiKeyField.pasteConfiguration = UIPasteConfiguration(forAccepting: NSString.self)
-        secretField.pasteConfiguration = UIPasteConfiguration(forAccepting: NSString.self)
+        apiKeyField.pasteConfiguration = UIPasteConfiguration(acceptableTypeIdentifiers: pasteTextTypeIdentifiers)
+        secretField.pasteConfiguration = UIPasteConfiguration(acceptableTypeIdentifiers: pasteTextTypeIdentifiers)
 
         apiKeyField.text = store.currentAPIKey()
         if hasStoredCredentials {
@@ -213,7 +222,21 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         return button
     }
 
-    private func makePasteControl(title: String, action: Selector) -> UIView {
+    private func makePasteControl(for textField: UITextField, title: String, action: Selector) -> UIView {
+        if #available(iOS 16.0, *) {
+            let configuration = UIPasteControl.Configuration()
+            configuration.baseBackgroundColor = view.tintColor.withAlphaComponent(0.08)
+            configuration.baseForegroundColor = view.tintColor
+            configuration.cornerStyle = .large
+            configuration.displayMode = .iconAndLabel
+
+            let pasteControl = UIPasteControl(configuration: configuration)
+            pasteControl.translatesAutoresizingMaskIntoConstraints = false
+            pasteControl.target = textField
+            pasteControl.heightAnchor.constraint(equalToConstant: 44).isActive = true
+            return pasteControl
+        }
+
         return makeActionButton(title: title, tintColor: view.tintColor, action: action)
     }
 
@@ -372,13 +395,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
 
     private func readPlainTextFromPasteboard() -> String? {
         let pasteboard = UIPasteboard.general
-        let candidateTypes = [
-            "public.utf8-plain-text",
-            "public.plain-text",
-            "public.text",
-            "NSStringPboardType",
-            "com.apple.traditional-mac-plain-text"
-        ]
+        let candidateTypes = pasteTextTypeIdentifiers
 
         var candidates: [String] = []
         if let string = pasteboard.string {
@@ -510,13 +527,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
             "items: \(items.count)"
         ]
 
-        let candidateTypes = [
-            "public.utf8-plain-text",
-            "public.plain-text",
-            "public.text",
-            "NSStringPboardType",
-            "com.apple.traditional-mac-plain-text"
-        ]
+        let candidateTypes = pasteTextTypeIdentifiers
         let itemSet = IndexSet(integersIn: 0..<max(pasteboard.numberOfItems, 1))
         for type in candidateTypes {
             let valueCount = pasteboard.values(forPasteboardType: type, inItemSet: itemSet)?.count ?? 0
