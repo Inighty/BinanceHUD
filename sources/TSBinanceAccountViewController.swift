@@ -189,7 +189,11 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
     }
 
     private func makeTextField(placeholder: String, secure: Bool) -> UITextField {
-        let textField = UITextField()
+        let textField = PasteCapturingTextField()
+        textField.acceptedPasteTypeIdentifiers = pasteTextTypeIdentifiers
+        textField.onPasteFailure = { [weak self] in
+            self?.presentPasteAccessError()
+        }
         textField.translatesAutoresizingMaskIntoConstraints = false
         textField.placeholder = placeholder
         textField.borderStyle = .roundedRect
@@ -636,5 +640,103 @@ private final class DiagnosticsViewController: UIViewController {
     @objc
     private func copyDiagnostics() {
         UIPasteboard.general.string = text
+    }
+}
+
+private final class PasteCapturingTextField: UITextField {
+    var acceptedPasteTypeIdentifiers: [String] = [] {
+        didSet {
+            pasteConfiguration = UIPasteConfiguration(acceptableTypeIdentifiers: acceptedPasteTypeIdentifiers)
+        }
+    }
+
+    var onPasteFailure: (() -> Void)?
+
+    override func canPaste(_ itemProviders: [NSItemProvider]) -> Bool {
+        itemProviders.contains { provider in
+            provider.canLoadObject(ofClass: NSString.self) ||
+                acceptedPasteTypeIdentifiers.contains { provider.hasItemConformingToTypeIdentifier($0) }
+        }
+    }
+
+    override func paste(_ sender: Any?) {
+        let previousText = text
+        super.paste(sender)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            guard let self = self else { return }
+            guard self.text == previousText || self.text?.isEmpty == true else { return }
+
+            if let pasteboardText = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !pasteboardText.isEmpty {
+                self.text = pasteboardText
+                self.becomeFirstResponder()
+                return
+            }
+
+            self.onPasteFailure?()
+        }
+    }
+
+    override func paste(itemProviders: [NSItemProvider]) {
+        guard let provider = itemProviders.first(where: { provider in
+            provider.canLoadObject(ofClass: NSString.self) ||
+                acceptedPasteTypeIdentifiers.contains { provider.hasItemConformingToTypeIdentifier($0) }
+        }) else {
+            onPasteFailure?()
+            return
+        }
+
+        if provider.canLoadObject(ofClass: NSString.self) {
+            provider.loadObject(ofClass: NSString.self) { [weak self] object, _ in
+                self?.applyLoadedPasteValue(object)
+            }
+            return
+        }
+
+        guard let typeIdentifier = acceptedPasteTypeIdentifiers.first(where: { provider.hasItemConformingToTypeIdentifier($0) }) else {
+            onPasteFailure?()
+            return
+        }
+
+        provider.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { [weak self] item, _ in
+            self?.applyLoadedPasteValue(item)
+        }
+    }
+
+    private func applyLoadedPasteValue(_ value: Any?) {
+        let text: String?
+        if let string = value as? String {
+            text = string
+        } else if let nsString = value as? NSString {
+            text = nsString as String
+        } else if let data = value as? Data {
+            text = decodePasteboardData(data)
+        } else if let url = value as? URL {
+            text = url.absoluteString
+        } else {
+            text = nil
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            guard let pastedText = text?.trimmingCharacters(in: .whitespacesAndNewlines), !pastedText.isEmpty else {
+                self.onPasteFailure?()
+                return
+            }
+
+            self.text = pastedText
+            self.becomeFirstResponder()
+        }
+    }
+
+    private func decodePasteboardData(_ data: Data) -> String? {
+        let encodings: [String.Encoding] = [.utf8, .utf16, .utf16LittleEndian, .utf16BigEndian, .ascii]
+        for encoding in encodings {
+            if let string = String(data: data, encoding: encoding), !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return string
+            }
+        }
+        return nil
     }
 }
