@@ -44,24 +44,12 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         secure: false
     )
 
-    private lazy var apiKeyPasteReceiver = TextFieldPasteReceiver(textField: apiKeyField) { [weak self] error in
-        self?.presentError(error)
-    }
-
-    private lazy var secretPasteReceiver = TextFieldPasteReceiver(textField: secretField) { [weak self] error in
-        self?.presentError(error)
-    }
-
     private lazy var apiKeyPasteControl: UIView = makePasteControl(
-        for: apiKeyField,
-        pasteReceiver: apiKeyPasteReceiver,
         title: NSLocalizedString("Paste API Key", comment: "TSBinanceAccountViewController"),
         action: #selector(pasteAPIKey)
     )
 
     private lazy var secretPasteControl: UIView = makePasteControl(
-        for: secretField,
-        pasteReceiver: secretPasteReceiver,
         title: NSLocalizedString("Paste API Secret", comment: "TSBinanceAccountViewController"),
         action: #selector(pasteSecret)
     )
@@ -120,8 +108,6 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         view.addGestureRecognizer(tapGesture)
 
         view.addSubview(scrollView)
-        view.addSubview(apiKeyPasteReceiver)
-        view.addSubview(secretPasteReceiver)
         scrollView.addSubview(contentStack)
 
         NSLayoutConstraint.activate([
@@ -129,16 +115,6 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-            apiKeyPasteReceiver.widthAnchor.constraint(equalToConstant: 1),
-            apiKeyPasteReceiver.heightAnchor.constraint(equalToConstant: 1),
-            apiKeyPasteReceiver.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            apiKeyPasteReceiver.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-            secretPasteReceiver.widthAnchor.constraint(equalToConstant: 1),
-            secretPasteReceiver.heightAnchor.constraint(equalToConstant: 1),
-            secretPasteReceiver.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            secretPasteReceiver.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
             contentStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 24),
             contentStack.leadingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.leadingAnchor, constant: 20),
@@ -237,26 +213,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         return button
     }
 
-    private func makePasteControl(
-        for _: UITextField,
-        pasteReceiver: TextFieldPasteReceiver,
-        title: String,
-        action: Selector
-    ) -> UIView {
-        if #available(iOS 16.0, *) {
-            let configuration = UIPasteControl.Configuration()
-            configuration.baseBackgroundColor = view.tintColor.withAlphaComponent(0.08)
-            configuration.baseForegroundColor = view.tintColor
-            configuration.cornerStyle = .large
-            configuration.displayMode = .iconAndLabel
-
-            let pasteControl = UIPasteControl(configuration: configuration)
-            pasteControl.translatesAutoresizingMaskIntoConstraints = false
-            pasteControl.target = pasteReceiver
-            pasteControl.heightAnchor.constraint(equalToConstant: 44).isActive = true
-            return pasteControl
-        }
-
+    private func makePasteControl(title: String, action: Selector) -> UIView {
         return makeActionButton(title: title, tintColor: view.tintColor, action: action)
     }
 
@@ -415,6 +372,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         let candidateTypes = [
             "public.utf8-plain-text",
             "public.plain-text",
+            "public.text",
             "NSStringPboardType",
             "com.apple.traditional-mac-plain-text"
         ]
@@ -552,6 +510,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         let candidateTypes = [
             "public.utf8-plain-text",
             "public.plain-text",
+            "public.text",
             "NSStringPboardType",
             "com.apple.traditional-mac-plain-text"
         ]
@@ -663,112 +622,5 @@ private final class DiagnosticsViewController: UIViewController {
     @objc
     private func copyDiagnostics() {
         UIPasteboard.general.string = text
-    }
-}
-
-private final class TextFieldPasteReceiver: UIView {
-    weak var textField: UITextField?
-
-    private let onError: (Error) -> Void
-    private let textTypeIdentifiers = [
-        "public.utf8-plain-text",
-        "public.plain-text",
-        "public.text",
-        "NSStringPboardType",
-        "com.apple.traditional-mac-plain-text"
-    ]
-
-    init(textField: UITextField, onError: @escaping (Error) -> Void) {
-        self.textField = textField
-        self.onError = onError
-        super.init(frame: .zero)
-        translatesAutoresizingMaskIntoConstraints = false
-        alpha = 0.01
-        isUserInteractionEnabled = false
-        isAccessibilityElement = false
-        pasteConfiguration = UIPasteConfiguration(acceptableTypeIdentifiers: textTypeIdentifiers)
-    }
-
-    required init?(coder: NSCoder) {
-        self.onError = { _ in }
-        super.init(coder: coder)
-        pasteConfiguration = UIPasteConfiguration(acceptableTypeIdentifiers: textTypeIdentifiers)
-    }
-
-    override func canPaste(_ itemProviders: [NSItemProvider]) -> Bool {
-        itemProviders.contains { provider in
-            provider.canLoadObject(ofClass: NSString.self) ||
-                textTypeIdentifiers.contains(where: { provider.hasItemConformingToTypeIdentifier($0) })
-        }
-    }
-
-    override func paste(itemProviders: [NSItemProvider]) {
-        guard let provider = itemProviders.first(where: { provider in
-            provider.canLoadObject(ofClass: NSString.self) ||
-                textTypeIdentifiers.contains(where: { provider.hasItemConformingToTypeIdentifier($0) })
-        }) else {
-            reportPasteFailure()
-            return
-        }
-
-        if provider.canLoadObject(ofClass: NSString.self) {
-            provider.loadObject(ofClass: NSString.self) { [weak self] object, _ in
-                self?.applyLoadedPasteValue(object)
-            }
-            return
-        }
-
-        guard let typeIdentifier = textTypeIdentifiers.first(where: { provider.hasItemConformingToTypeIdentifier($0) }) else {
-            reportPasteFailure()
-            return
-        }
-
-        provider.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { [weak self] item, _ in
-            self?.applyLoadedPasteValue(item)
-        }
-    }
-
-    private func applyLoadedPasteValue(_ value: Any?) {
-        let text: String?
-        if let string = value as? String {
-            text = string
-        } else if let nsString = value as? NSString {
-            text = nsString as String
-        } else if let data = value as? Data {
-            text = decodePasteboardData(data)
-        } else if let url = value as? URL {
-            text = url.absoluteString
-        } else {
-            text = nil
-        }
-
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            guard let pastedText = text?.trimmingCharacters(in: .whitespacesAndNewlines), !pastedText.isEmpty else {
-                self.reportPasteFailure()
-                return
-            }
-
-            self.textField?.text = pastedText
-            self.textField?.becomeFirstResponder()
-        }
-    }
-
-    private func decodePasteboardData(_ data: Data) -> String? {
-        let encodings: [String.Encoding] = [.utf8, .utf16, .utf16LittleEndian, .utf16BigEndian, .ascii]
-        for encoding in encodings {
-            if let string = String(data: data, encoding: encoding), !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return string
-            }
-        }
-        return nil
-    }
-
-    private func reportPasteFailure() {
-        onError(NSError(
-            domain: "TSBinanceAccountViewController",
-            code: 3,
-            userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("Clipboard is empty or paste access was denied.", comment: "TSBinanceAccountViewController")]
-        ))
     }
 }
