@@ -31,7 +31,7 @@
 "Display Mode" = "Display Mode";
 "Display Symbol" = "Display Symbol";
 "Dismiss" = "Dismiss";
-"Enter a read-only USD-M Futures API Key and Secret. Use the buttons below to paste directly from the clipboard." = "Enter a read-only USD-M Futures API Key and Secret. Use the buttons below to paste directly from the clipboard.";
+"Enter a read-only USD-M Futures API Key and Secret." = "Enter a read-only USD-M Futures API Key and Secret.";
 "Exit HUD" = "Exit HUD";
 "Follow" = "Follow";
 "Hide" = "Hide";

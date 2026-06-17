@@ -9,13 +9,6 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
     weak var delegate: TSBinanceAccountViewControllerDelegate?
 
     private let store = TSBinanceCredentialStore.sharedStore()
-    private let pasteTextTypeIdentifiers = [
-        "public.utf8-plain-text",
-        "public.plain-text",
-        "public.text",
-        "NSStringPboardType",
-        "com.apple.traditional-mac-plain-text"
-    ]
 
     private lazy var scrollView: UIScrollView = {
         let view = UIScrollView()
@@ -37,7 +30,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         label.numberOfLines = 0
         label.font = .systemFont(ofSize: 15, weight: .regular)
         label.textColor = .secondaryLabel
-        label.text = NSLocalizedString("Enter a read-only USD-M Futures API Key and Secret. Use the buttons below to paste directly from the clipboard.", comment: "TSBinanceAccountViewController")
+        label.text = NSLocalizedString("Enter a read-only USD-M Futures API Key and Secret.", comment: "TSBinanceAccountViewController")
         return label
     }()
 
@@ -49,18 +42,6 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
     private lazy var secretField: UITextField = makeTextField(
         placeholder: NSLocalizedString("API Secret", comment: "TSBinanceAccountViewController"),
         secure: false
-    )
-
-    private lazy var apiKeyPasteControl: UIView = makePasteControl(
-        for: apiKeyField,
-        title: NSLocalizedString("Paste API Key", comment: "TSBinanceAccountViewController"),
-        action: #selector(pasteAPIKey)
-    )
-
-    private lazy var secretPasteControl: UIView = makePasteControl(
-        for: secretField,
-        title: NSLocalizedString("Paste API Secret", comment: "TSBinanceAccountViewController"),
-        action: #selector(pasteSecret)
     )
 
     private lazy var secretVisibilityButton: UIButton = makeActionButton(
@@ -103,9 +84,6 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
             action: #selector(saveCredentials)
         )
 
-        apiKeyField.pasteConfiguration = UIPasteConfiguration(acceptableTypeIdentifiers: pasteTextTypeIdentifiers)
-        secretField.pasteConfiguration = UIPasteConfiguration(acceptableTypeIdentifiers: pasteTextTypeIdentifiers)
-
         apiKeyField.text = store.currentAPIKey()
         if hasStoredCredentials {
             secretField.placeholder = NSLocalizedString("Leave blank to keep current secret", comment: "TSBinanceAccountViewController")
@@ -134,13 +112,12 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         contentStack.addArrangedSubview(descriptionLabel)
         contentStack.addArrangedSubview(makeFieldSection(
             title: NSLocalizedString("API Key", comment: "TSBinanceAccountViewController"),
-            textField: apiKeyField,
-            buttons: [apiKeyPasteControl]
+            textField: apiKeyField
         ))
         contentStack.addArrangedSubview(makeFieldSection(
             title: NSLocalizedString("API Secret", comment: "TSBinanceAccountViewController"),
             textField: secretField,
-            buttons: [secretPasteControl, secretVisibilityButton]
+            buttons: [secretVisibilityButton]
         ))
         if hasStoredCredentials {
             contentStack.addArrangedSubview(positionDiagnosticsButton)
@@ -157,7 +134,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         }
     }
 
-    private func makeFieldSection(title: String, textField: UITextField, buttons: [UIView]) -> UIView {
+    private func makeFieldSection(title: String, textField: UITextField, buttons: [UIView] = []) -> UIView {
         let sectionView = UIView()
         let stackView = UIStackView()
         stackView.translatesAutoresizingMaskIntoConstraints = false
@@ -172,11 +149,13 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         stackView.addArrangedSubview(titleLabel)
         stackView.addArrangedSubview(textField)
 
-        let buttonRow = UIStackView(arrangedSubviews: buttons)
-        buttonRow.axis = .horizontal
-        buttonRow.spacing = 10
-        buttonRow.distribution = .fillEqually
-        stackView.addArrangedSubview(buttonRow)
+        if !buttons.isEmpty {
+            let buttonRow = UIStackView(arrangedSubviews: buttons)
+            buttonRow.axis = .horizontal
+            buttonRow.spacing = 10
+            buttonRow.distribution = .fillEqually
+            stackView.addArrangedSubview(buttonRow)
+        }
 
         sectionView.addSubview(stackView)
         NSLayoutConstraint.activate([
@@ -189,11 +168,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
     }
 
     private func makeTextField(placeholder: String, secure: Bool) -> UITextField {
-        let textField = PasteCapturingTextField()
-        textField.acceptedPasteTypeIdentifiers = pasteTextTypeIdentifiers
-        textField.onPasteFailure = { [weak self] in
-            self?.presentPasteAccessError()
-        }
+        let textField = UITextField()
         textField.translatesAutoresizingMaskIntoConstraints = false
         textField.placeholder = placeholder
         textField.borderStyle = .roundedRect
@@ -224,24 +199,6 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         button.heightAnchor.constraint(equalToConstant: 44).isActive = true
         button.addTarget(self, action: action, for: .touchUpInside)
         return button
-    }
-
-    private func makePasteControl(for textField: UITextField, title: String, action: Selector) -> UIView {
-        if #available(iOS 16.0, *) {
-            let configuration = UIPasteControl.Configuration()
-            configuration.baseBackgroundColor = view.tintColor.withAlphaComponent(0.08)
-            configuration.baseForegroundColor = view.tintColor
-            configuration.cornerStyle = .large
-            configuration.displayMode = .iconAndLabel
-
-            let pasteControl = UIPasteControl(configuration: configuration)
-            pasteControl.translatesAutoresizingMaskIntoConstraints = false
-            pasteControl.target = textField
-            pasteControl.heightAnchor.constraint(equalToConstant: 44).isActive = true
-            return pasteControl
-        }
-
-        return makeActionButton(title: title, tintColor: view.tintColor, action: action)
     }
 
     @objc
@@ -281,16 +238,6 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         } catch {
             presentError(error)
         }
-    }
-
-    @objc
-    private func pasteAPIKey() {
-        pasteClipboardText(into: apiKeyField)
-    }
-
-    @objc
-    private func pasteSecret() {
-        pasteClipboardText(into: secretField)
     }
 
     @objc
@@ -344,126 +291,6 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         dismiss(animated: true)
     }
 
-    private func pasteClipboardText(into textField: UITextField) {
-        pasteClipboardText(into: textField, attempt: 0)
-    }
-
-    private func pasteClipboardText(into textField: UITextField, attempt: Int) {
-        let wasSecure = textField.isSecureTextEntry
-        if wasSecure {
-            textField.isSecureTextEntry = false
-        }
-
-        if let clipboardText = readPlainTextFromPasteboard() {
-            textField.text = clipboardText
-            textField.becomeFirstResponder()
-            if wasSecure {
-                DispatchQueue.main.async {
-                    textField.isSecureTextEntry = true
-                }
-            }
-            return
-        }
-
-        let previousText = textField.text
-        textField.becomeFirstResponder()
-        textField.selectAll(nil)
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self, weak textField] in
-            guard let self = self, let textField = textField else { return }
-
-            textField.paste(self)
-
-            if wasSecure {
-                DispatchQueue.main.async {
-                    textField.isSecureTextEntry = true
-                }
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self, weak textField] in
-                guard let self = self, let textField = textField else { return }
-                guard textField.text == previousText || textField.text?.isEmpty == true else { return }
-
-                if attempt < 3 {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self, weak textField] in
-                        guard let self = self, let textField = textField else { return }
-                        self.pasteClipboardText(into: textField, attempt: attempt + 1)
-                    }
-                    return
-                }
-
-                self.presentPasteAccessError()
-            }
-        }
-    }
-
-    private func readPlainTextFromPasteboard() -> String? {
-        let pasteboard = UIPasteboard.general
-        let candidateTypes = pasteTextTypeIdentifiers
-
-        var candidates: [String] = []
-        if let string = pasteboard.string {
-            candidates.append(string)
-        }
-        if let strings = pasteboard.strings {
-            candidates.append(contentsOf: strings)
-        }
-
-        for type in candidateTypes {
-            if let string = pasteboard.value(forPasteboardType: type) as? String {
-                candidates.append(string)
-            } else if let data = pasteboard.data(forPasteboardType: type), let string = String(data: data, encoding: .utf8) {
-                candidates.append(string)
-            }
-
-            let itemSet = IndexSet(integersIn: 0..<max(pasteboard.numberOfItems, 1))
-            if let values = pasteboard.values(forPasteboardType: type, inItemSet: itemSet) {
-                candidates.append(contentsOf: values.compactMap { pasteboardValueToString($0) })
-            }
-            if let dataValues = pasteboard.data(forPasteboardType: type, inItemSet: itemSet) {
-                candidates.append(contentsOf: dataValues.compactMap { decodePasteboardData($0) })
-            }
-        }
-
-        for item in pasteboard.items {
-            for value in item.values {
-                if let string = pasteboardValueToString(value) {
-                    candidates.append(string)
-                }
-            }
-        }
-
-        return candidates
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .first { !$0.isEmpty }
-    }
-
-    private func pasteboardValueToString(_ value: Any) -> String? {
-        if let string = value as? String {
-            return string
-        }
-        if let nsString = value as? NSString {
-            return nsString as String
-        }
-        if let url = value as? URL {
-            return url.absoluteString
-        }
-        if let data = value as? Data {
-            return decodePasteboardData(data)
-        }
-        return nil
-    }
-
-    private func decodePasteboardData(_ data: Data) -> String? {
-        let encodings: [String.Encoding] = [.utf8, .utf16, .utf16LittleEndian, .utf16BigEndian, .ascii]
-        for encoding in encodings {
-            if let string = String(data: data, encoding: encoding), !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return string
-            }
-        }
-        return nil
-    }
-
     private func presentError(_ error: Error) {
         let nsError = error as NSError
         let alertController = UIAlertController(
@@ -476,100 +303,6 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
             style: .cancel
         ))
         present(alertController, animated: true)
-    }
-
-    private func presentPasteAccessError() {
-        let diagnostics = pasteboardDiagnosticSummary()
-        let message = [
-            NSLocalizedString("Unable to paste. In iOS Settings, open BinanceHUD and set Paste from Other Apps to Ask or Allow.", comment: "TSBinanceAccountViewController"),
-            diagnostics
-        ].joined(separator: "\n\n")
-
-        let alertController = UIAlertController(
-            title: NSLocalizedString("Binance Settings Error", comment: "TSBinanceAccountViewController"),
-            message: message,
-            preferredStyle: .alert
-        )
-        alertController.addAction(UIAlertAction(
-            title: NSLocalizedString("Dismiss", comment: "TSBinanceAccountViewController"),
-            style: .cancel
-        ))
-        alertController.addAction(UIAlertAction(
-            title: NSLocalizedString("Open Settings", comment: "TSBinanceAccountViewController"),
-            style: .default,
-            handler: { _ in
-                guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
-                UIApplication.shared.open(settingsURL, options: [:])
-            }
-        ))
-        alertController.addAction(UIAlertAction(
-            title: NSLocalizedString("Show Diagnostics", comment: "TSBinanceAccountViewController"),
-            style: .default,
-            handler: { [weak self] _ in
-                self?.presentPasteDiagnostics(diagnostics)
-            }
-        ))
-        alertController.addAction(UIAlertAction(
-            title: NSLocalizedString("Copy Diagnostics", comment: "TSBinanceAccountViewController"),
-            style: .default,
-            handler: { _ in
-                UIPasteboard.general.string = diagnostics
-            }
-        ))
-        present(alertController, animated: true)
-    }
-
-    private func pasteboardDiagnosticSummary() -> String {
-        let pasteboard = UIPasteboard.general
-        let items = pasteboard.items
-        var lines = [
-            "Pasteboard diagnostics:",
-            "hasStrings: \(pasteboard.hasStrings)",
-            "stringVisible: \(pasteboard.string != nil)",
-            "stringsVisible: \(pasteboard.strings?.count ?? -1)",
-            "numberOfItems: \(pasteboard.numberOfItems)",
-            "items: \(items.count)"
-        ]
-
-        let candidateTypes = pasteTextTypeIdentifiers
-        let itemSet = IndexSet(integersIn: 0..<max(pasteboard.numberOfItems, 1))
-        for type in candidateTypes {
-            let valueCount = pasteboard.values(forPasteboardType: type, inItemSet: itemSet)?.count ?? 0
-            let dataCount = pasteboard.data(forPasteboardType: type, inItemSet: itemSet)?.count ?? 0
-            lines.append("\(type): values=\(valueCount), data=\(dataCount)")
-        }
-
-        for (index, item) in items.prefix(3).enumerated() {
-            let details = item
-                .keys
-                .sorted()
-                .map { key -> String in
-                    guard let value = item[key] else {
-                        return "\(key)=nil"
-                    }
-                    if let data = value as? Data {
-                        return "\(key)=Data(\(data.count))"
-                    }
-                    if let string = value as? String {
-                        return "\(key)=String(\(string.count))"
-                    }
-                    if let nsString = value as? NSString {
-                        return "\(key)=NSString(\(nsString.length))"
-                    }
-                    return "\(key)=\(String(describing: type(of: value)))"
-                }
-                .joined(separator: ", ")
-            lines.append("item[\(index)]: \(details)")
-        }
-
-        return lines.joined(separator: "\n")
-    }
-
-    private func presentPasteDiagnostics(_ diagnostics: String) {
-        presentDiagnostics(
-            diagnostics,
-            title: NSLocalizedString("Pasteboard Diagnostics", comment: "TSBinanceAccountViewController")
-        )
     }
 
     private func presentDiagnostics(_ diagnostics: String, title: String) {
@@ -640,103 +373,5 @@ private final class DiagnosticsViewController: UIViewController {
     @objc
     private func copyDiagnostics() {
         UIPasteboard.general.string = text
-    }
-}
-
-private final class PasteCapturingTextField: UITextField {
-    var acceptedPasteTypeIdentifiers: [String] = [] {
-        didSet {
-            pasteConfiguration = UIPasteConfiguration(acceptableTypeIdentifiers: acceptedPasteTypeIdentifiers)
-        }
-    }
-
-    var onPasteFailure: (() -> Void)?
-
-    override func canPaste(_ itemProviders: [NSItemProvider]) -> Bool {
-        itemProviders.contains { provider in
-            provider.canLoadObject(ofClass: NSString.self) ||
-                acceptedPasteTypeIdentifiers.contains { provider.hasItemConformingToTypeIdentifier($0) }
-        }
-    }
-
-    override func paste(_ sender: Any?) {
-        let previousText = text
-        super.paste(sender)
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
-            guard let self = self else { return }
-            guard self.text == previousText || self.text?.isEmpty == true else { return }
-
-            if let pasteboardText = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !pasteboardText.isEmpty {
-                self.text = pasteboardText
-                self.becomeFirstResponder()
-                return
-            }
-
-            self.onPasteFailure?()
-        }
-    }
-
-    override func paste(itemProviders: [NSItemProvider]) {
-        guard let provider = itemProviders.first(where: { provider in
-            provider.canLoadObject(ofClass: NSString.self) ||
-                acceptedPasteTypeIdentifiers.contains { provider.hasItemConformingToTypeIdentifier($0) }
-        }) else {
-            onPasteFailure?()
-            return
-        }
-
-        if provider.canLoadObject(ofClass: NSString.self) {
-            provider.loadObject(ofClass: NSString.self) { [weak self] object, _ in
-                self?.applyLoadedPasteValue(object)
-            }
-            return
-        }
-
-        guard let typeIdentifier = acceptedPasteTypeIdentifiers.first(where: { provider.hasItemConformingToTypeIdentifier($0) }) else {
-            onPasteFailure?()
-            return
-        }
-
-        provider.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { [weak self] item, _ in
-            self?.applyLoadedPasteValue(item)
-        }
-    }
-
-    private func applyLoadedPasteValue(_ value: Any?) {
-        let text: String?
-        if let string = value as? String {
-            text = string
-        } else if let nsString = value as? NSString {
-            text = nsString as String
-        } else if let data = value as? Data {
-            text = decodePasteboardData(data)
-        } else if let url = value as? URL {
-            text = url.absoluteString
-        } else {
-            text = nil
-        }
-
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            guard let pastedText = text?.trimmingCharacters(in: .whitespacesAndNewlines), !pastedText.isEmpty else {
-                self.onPasteFailure?()
-                return
-            }
-
-            self.text = pastedText
-            self.becomeFirstResponder()
-        }
-    }
-
-    private func decodePasteboardData(_ data: Data) -> String? {
-        let encodings: [String.Encoding] = [.utf8, .utf16, .utf16LittleEndian, .utf16BigEndian, .ascii]
-        for encoding in encodings {
-            if let string = String(data: data, encoding: encoding), !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return string
-            }
-        }
-        return nil
     }
 }

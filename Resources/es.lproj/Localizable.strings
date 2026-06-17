@@ -31,7 +31,7 @@
 "Display Mode" = "Modo de visualización";
 "Display Symbol" = "Símbolo a mostrar";
 "Dismiss" = "Cerrar";
-"Enter a read-only USD-M Futures API Key and Secret. Use the buttons below to paste directly from the clipboard." = "Introduce una API Key y un Secret de futuros USD-M con permiso de solo lectura. Usa los botones de abajo para pegarlos directamente desde el portapapeles.";
+"Enter a read-only USD-M Futures API Key and Secret." = "Introduce una API Key y un Secret de futuros USD-M con permiso de solo lectura.";
 "Exit HUD" = "Cerrar HUD";
 "Follow" = "Seguir";
 "Hide" = "Ocultar";

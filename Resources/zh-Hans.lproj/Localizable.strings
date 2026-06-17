@@ -31,7 +31,7 @@
 "Display Mode" = "显示模式";
 "Display Symbol" = "指定币种";
 "Dismiss" = "关闭";
-"Enter a read-only USD-M Futures API Key and Secret. Use the buttons below to paste directly from the clipboard." = "请输入只读的 USD-M 合约 API Key 和 Secret。也可以使用下方按钮直接从剪贴板粘贴。";
+"Enter a read-only USD-M Futures API Key and Secret." = "请输入只读的 USD-M 合约 API Key 和 Secret。";
 "Exit HUD" = "关闭悬浮窗";
 "Follow" = "跟随";
 "Hide" = "隐藏";
