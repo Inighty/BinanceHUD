@@ -31,7 +31,10 @@
 "Display Mode" = "Modo de visualización";
 "Display Symbol" = "Símbolo a mostrar";
 "Dismiss" = "Cerrar";
-"Enter a read-only USD-M Futures API Key and Secret." = "Introduce una API Key y un Secret de futuros USD-M con permiso de solo lectura.";
+"Enter a read-only USD-M Futures API Key and Secret. Tap Paste to fill each field from the clipboard." = "Introduce una API Key y un Secret de futuros USD-M con permiso de solo lectura. Toca Pegar para rellenar cada campo desde el portapapeles.";
+"Nothing to Paste" = "Nada que pegar";
+"The clipboard is empty or its contents could not be read. Copy your API Key or Secret again, then tap Paste." = "El portapapeles está vacío o no se pudo leer su contenido. Copia de nuevo tu API Key o Secret y toca Pegar.";
+"Paste" = "Pegar";
 "Exit HUD" = "Cerrar HUD";
 "Follow" = "Seguir";
 "Hide" = "Ocultar";

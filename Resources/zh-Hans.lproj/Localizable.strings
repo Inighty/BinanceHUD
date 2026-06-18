@@ -31,7 +31,10 @@
 "Display Mode" = "显示模式";
 "Display Symbol" = "指定币种";
 "Dismiss" = "关闭";
-"Enter a read-only USD-M Futures API Key and Secret." = "请输入只读的 USD-M 合约 API Key 和 Secret。";
+"Enter a read-only USD-M Futures API Key and Secret. Tap Paste to fill each field from the clipboard." = "请输入只读的 USD-M 合约 API Key 和 Secret。点击“粘贴”可从剪贴板填入对应字段。";
+"Nothing to Paste" = "没有可粘贴的内容";
+"The clipboard is empty or its contents could not be read. Copy your API Key or Secret again, then tap Paste." = "剪贴板为空或无法读取其内容。请重新复制你的 API Key 或 Secret，然后点击“粘贴”。";
+"Paste" = "粘贴";
 "Exit HUD" = "关闭悬浮窗";
 "Follow" = "跟随";
 "Hide" = "隐藏";
