@@ -79,6 +79,12 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         action: #selector(showPositionDiagnostics)
     )
 
+    private lazy var pasteDiagnosticsButton: UIButton = makeActionButton(
+        title: NSLocalizedString("Show Paste Diagnostics", comment: "TSBinanceAccountViewController"),
+        tintColor: view.tintColor,
+        action: #selector(showPasteDiagnostics)
+    )
+
     private var hasStoredCredentials: Bool {
         store.hasCredentials()
     }
@@ -137,6 +143,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
             textField: secretField,
             buttons: [secretPasteView, secretVisibilityButton]
         ))
+        contentStack.addArrangedSubview(pasteDiagnosticsButton)
         if hasStoredCredentials {
             contentStack.addArrangedSubview(positionDiagnosticsButton)
             contentStack.addArrangedSubview(clearCredentialsButton)
@@ -358,6 +365,58 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
             diagnostics,
             title: NSLocalizedString("Binance Diagnostics", comment: "TSBinanceAccountViewController")
         )
+    }
+
+    @objc
+    private func showPasteDiagnostics() {
+        presentDiagnostics(
+            pasteboardDiagnosticSummary(),
+            title: NSLocalizedString("Pasteboard Diagnostics", comment: "TSBinanceAccountViewController")
+        )
+    }
+
+    private func pasteboardDiagnosticSummary() -> String {
+        let pasteboard = UIPasteboard.general
+        var lines: [String] = ["Pasteboard diagnostics:"]
+
+        // Detection accessors below do not trigger the iOS 16+ paste prompt, so they reveal what
+        // this process can actually see right after the user copies text elsewhere.
+        lines.append("changeCount: \(pasteboard.changeCount)")
+        lines.append("hasStrings: \(pasteboard.hasStrings)")
+        lines.append("hasURLs: \(pasteboard.hasURLs)")
+        lines.append("hasImages: \(pasteboard.hasImages)")
+        lines.append("hasColors: \(pasteboard.hasColors)")
+        lines.append("numberOfItems: \(pasteboard.numberOfItems)")
+
+        if let string = pasteboard.string {
+            lines.append("string read: ok (len=\(string.count))")
+        } else {
+            lines.append("string read: nil")
+        }
+        lines.append("strings read: \(pasteboard.strings?.count ?? -1)")
+
+        for (index, item) in pasteboard.items.prefix(5).enumerated() {
+            lines.append("item[\(index)] types: \(item.keys.sorted())")
+        }
+
+        lines.append("")
+        lines.append("App state:")
+        lines.append("bundleID: \(Bundle.main.bundleIdentifier ?? "nil")")
+        lines.append("applicationState: \(applicationStateDescription)")
+        lines.append("isProtectedDataAvailable: \(UIApplication.shared.isProtectedDataAvailable)")
+        lines.append("windowScenes: \(UIApplication.shared.connectedScenes.count)")
+        lines.append("isKeyWindowKey: \(view.window?.isKeyWindow ?? false)")
+
+        return lines.joined(separator: "\n")
+    }
+
+    private var applicationStateDescription: String {
+        switch UIApplication.shared.applicationState {
+        case .active: return "active"
+        case .inactive: return "inactive"
+        case .background: return "background"
+        @unknown default: return "unknown"
+        }
     }
 
     private func performClearCredentials() {
