@@ -31,7 +31,10 @@
 "Display Mode" = "Modo de visualización";
 "Display Symbol" = "Símbolo a mostrar";
 "Dismiss" = "Cerrar";
-"Enter a read-only USD-M Futures API Key and Secret. Tap Paste to fill each field from the clipboard." = "Introduce una API Key y un Secret de futuros USD-M con permiso de solo lectura. Toca Pegar para rellenar cada campo desde el portapapeles.";
+"Enter a read-only USD-M Futures API Key and Secret. If Paste does nothing, use Import from File and pick a text file containing your Key and Secret." = "Introduce una API Key y un Secret de futuros USD-M con permiso de solo lectura. Si Pegar no funciona, usa Importar desde archivo y elige un archivo de texto con tu Key y Secret.";
+"Import from File" = "Importar desde archivo";
+"Couldn’t Read File" = "No se pudo leer el archivo";
+"Put your API Key on the first line and your API Secret on the second line (or use lines like key=… and secret=…), then import again." = "Pon tu API Key en la primera línea y tu API Secret en la segunda (o usa líneas como key=… y secret=…), y vuelve a importar.";
 "Nothing to Paste" = "Nada que pegar";
 "The clipboard is empty or its contents could not be read. Copy your API Key or Secret again, then tap Paste." = "El portapapeles está vacío o no se pudo leer su contenido. Copia de nuevo tu API Key o Secret y toca Pegar.";
 "Paste" = "Pegar";

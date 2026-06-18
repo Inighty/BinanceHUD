@@ -1,11 +1,12 @@
 import UIKit
+import UniformTypeIdentifiers
 
 @objc protocol TSBinanceAccountViewControllerDelegate: AnyObject {
     func binanceAccountViewControllerDidUpdateCredentials(_ controller: TSBinanceAccountViewController)
 }
 
 @objcMembers
-final class TSBinanceAccountViewController: UIViewController, UIGestureRecognizerDelegate {
+final class TSBinanceAccountViewController: UIViewController, UIGestureRecognizerDelegate, UIDocumentPickerDelegate {
     weak var delegate: TSBinanceAccountViewControllerDelegate?
 
     private let store = TSBinanceCredentialStore.sharedStore()
@@ -30,7 +31,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         label.numberOfLines = 0
         label.font = .systemFont(ofSize: 15, weight: .regular)
         label.textColor = .secondaryLabel
-        label.text = NSLocalizedString("Enter a read-only USD-M Futures API Key and Secret. Tap Paste to fill each field from the clipboard.", comment: "TSBinanceAccountViewController")
+        label.text = NSLocalizedString("Enter a read-only USD-M Futures API Key and Secret. If Paste does nothing, use Import from File and pick a text file containing your Key and Secret.", comment: "TSBinanceAccountViewController")
         return label
     }()
 
@@ -80,6 +81,14 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         title: NSLocalizedString("Show Paste Diagnostics", comment: "TSBinanceAccountViewController"),
         tintColor: view.tintColor,
         action: #selector(showPasteDiagnostics)
+    )
+
+    // The clipboard is unreadable from this unsandboxed platform-application (pasteboardd redacts
+    // every read), so importing from a file is the reliable way to get long credentials in.
+    private lazy var importButton: UIButton = makeActionButton(
+        title: NSLocalizedString("Import from File", comment: "TSBinanceAccountViewController"),
+        tintColor: view.tintColor,
+        action: #selector(importFromFile)
     )
 
     private var hasStoredCredentials: Bool {
@@ -140,6 +149,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
             textField: secretField,
             buttons: [secretPasteView, secretVisibilityButton]
         ))
+        contentStack.addArrangedSubview(importButton)
         contentStack.addArrangedSubview(pasteDiagnosticsButton)
         if hasStoredCredentials {
             contentStack.addArrangedSubview(positionDiagnosticsButton)
@@ -281,6 +291,102 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
                 UIApplication.shared.open(settingsURL, options: [:])
             }
         ))
+        alertController.addAction(UIAlertAction(
+            title: NSLocalizedString("Dismiss", comment: "TSBinanceAccountViewController"),
+            style: .cancel
+        ))
+        present(alertController, animated: true)
+    }
+
+    @objc
+    private func importFromFile() {
+        let picker = UIDocumentPickerViewController(
+            forOpeningContentTypes: [.plainText, .utf8PlainText, .text, .data]
+        )
+        picker.delegate = self
+        picker.allowsMultipleSelection = false
+        present(picker, animated: true)
+    }
+
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        guard let url = urls.first else { return }
+
+        let didAccess = url.startAccessingSecurityScopedResource()
+        defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+
+        do {
+            let data = try Data(contentsOf: url)
+            applyImportedCredentials(from: String(decoding: data, as: UTF8.self))
+        } catch {
+            presentError(error)
+        }
+    }
+
+    private func applyImportedCredentials(from raw: String) {
+        let parsed = parseCredentials(from: raw)
+        var didFill = false
+
+        if let key = parsed.key {
+            apiKeyField.text = key
+            apiKeyField.sendActions(for: .editingChanged)
+            didFill = true
+        }
+        if let secret = parsed.secret {
+            secretField.text = secret
+            secretField.sendActions(for: .editingChanged)
+            didFill = true
+        }
+
+        if !didFill {
+            presentImportError()
+        }
+    }
+
+    private func parseCredentials(from raw: String) -> (key: String?, secret: String?) {
+        let lines = raw
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        var key: String?
+        var secret: String?
+        var bareTokens: [String] = []
+
+        for line in lines {
+            // Treat "name = value" / "name: value" only when the name is a recognizable label;
+            // otherwise the whole line is a positional token (keeps base64 "=" padding intact).
+            if let separator = line.firstIndex(where: { $0 == "=" || $0 == ":" }) {
+                let name = String(line[..<separator]).trimmingCharacters(in: .whitespaces).lowercased()
+                let value = String(line[line.index(after: separator)...]).trimmingCharacters(in: .whitespaces)
+                if !value.isEmpty && (name.contains("secret") || name.contains("key") || name == "api") {
+                    if name.contains("secret") {
+                        secret = value
+                    } else {
+                        key = value
+                    }
+                    continue
+                }
+            }
+            bareTokens.append(line)
+        }
+
+        // Fall back to positional order: first line is the key, second is the secret.
+        if key == nil, bareTokens.indices.contains(0) {
+            key = bareTokens[0]
+        }
+        if secret == nil, bareTokens.indices.contains(1) {
+            secret = bareTokens[1]
+        }
+
+        return (key, secret)
+    }
+
+    private func presentImportError() {
+        let alertController = UIAlertController(
+            title: NSLocalizedString("Couldn’t Read File", comment: "TSBinanceAccountViewController"),
+            message: NSLocalizedString("Put your API Key on the first line and your API Secret on the second line (or use lines like key=… and secret=…), then import again.", comment: "TSBinanceAccountViewController"),
+            preferredStyle: .alert
+        )
         alertController.addAction(UIAlertAction(
             title: NSLocalizedString("Dismiss", comment: "TSBinanceAccountViewController"),
             style: .cancel

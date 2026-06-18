@@ -31,7 +31,10 @@
 "Display Mode" = "显示模式";
 "Display Symbol" = "指定币种";
 "Dismiss" = "关闭";
-"Enter a read-only USD-M Futures API Key and Secret. Tap Paste to fill each field from the clipboard." = "请输入只读的 USD-M 合约 API Key 和 Secret。点击“粘贴”可从剪贴板填入对应字段。";
+"Enter a read-only USD-M Futures API Key and Secret. If Paste does nothing, use Import from File and pick a text file containing your Key and Secret." = "请输入只读的 USD-M 合约 API Key 和 Secret。若“粘贴”无效，请用“从文件导入”，选择一个包含 Key 和 Secret 的文本文件。";
+"Import from File" = "从文件导入";
+"Couldn’t Read File" = "无法读取文件";
+"Put your API Key on the first line and your API Secret on the second line (or use lines like key=… and secret=…), then import again." = "请把 API Key 放在第一行、API Secret 放在第二行（或使用 key=… 和 secret=… 这样的行），然后重新导入。";
 "Nothing to Paste" = "没有可粘贴的内容";
 "The clipboard is empty or its contents could not be read. Copy your API Key or Secret again, then tap Paste." = "剪贴板为空或无法读取其内容。请重新复制你的 API Key 或 Secret，然后点击“粘贴”。";
 "Paste" = "粘贴";
