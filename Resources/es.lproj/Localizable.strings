@@ -35,6 +35,9 @@
 "Nothing to Paste" = "Nada que pegar";
 "The clipboard is empty or its contents could not be read. Copy your API Key or Secret again, then tap Paste." = "El portapapeles está vacío o no se pudo leer su contenido. Copia de nuevo tu API Key o Secret y toca Pegar.";
 "Paste" = "Pegar";
+"Couldn’t Paste" = "No se pudo pegar";
+"BinanceHUD is blocked from reading the clipboard. In iOS Settings, open BinanceHUD and set “Paste from Other Apps” to Allow, then try again." = "BinanceHUD no puede leer el portapapeles. En Ajustes de iOS, abre BinanceHUD y configura “Pegar desde otras apps” en Permitir, y vuelve a intentarlo.";
+"Open Settings" = "Abrir Ajustes";
 "Exit HUD" = "Cerrar HUD";
 "Follow" = "Seguir";
 "Hide" = "Ocultar";

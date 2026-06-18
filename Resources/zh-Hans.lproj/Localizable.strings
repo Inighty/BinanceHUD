@@ -35,6 +35,9 @@
 "Nothing to Paste" = "没有可粘贴的内容";
 "The clipboard is empty or its contents could not be read. Copy your API Key or Secret again, then tap Paste." = "剪贴板为空或无法读取其内容。请重新复制你的 API Key 或 Secret，然后点击“粘贴”。";
 "Paste" = "粘贴";
+"Couldn’t Paste" = "无法粘贴";
+"BinanceHUD is blocked from reading the clipboard. In iOS Settings, open BinanceHUD and set “Paste from Other Apps” to Allow, then try again." = "BinanceHUD 被系统禁止读取剪贴板。请在 iOS“设置”中打开 BinanceHUD，将“从其他 App 粘贴”设为“允许”，然后重试。";
+"Open Settings" = "打开设置";
 "Exit HUD" = "关闭悬浮窗";
 "Follow" = "跟随";
 "Hide" = "隐藏";

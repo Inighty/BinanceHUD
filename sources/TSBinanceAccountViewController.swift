@@ -34,30 +34,27 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         return label
     }()
 
-    private lazy var apiKeyField: UITextField = makeTextField(
+    private lazy var apiKeyField: CredentialTextField = makeTextField(
         placeholder: NSLocalizedString("API Key", comment: "TSBinanceAccountViewController"),
         secure: false
     )
 
-    private lazy var secretField: UITextField = makeTextField(
+    private lazy var secretField: CredentialTextField = makeTextField(
         placeholder: NSLocalizedString("API Secret", comment: "TSBinanceAccountViewController"),
         secure: false
     )
 
     // UIPasteControl performs a privileged, one-time paste granted by the user's tap on the
-    // control itself. This bypasses the per-app "Paste from Other Apps" policy (which this
-    // unsandboxed build is treated as denying), so it works even though the standard edit-menu
-    // "Paste" reads back empty. The targets must be retained here because UIPasteControl.target
-    // is a weak reference.
-    private lazy var apiKeyPasteTarget: CredentialPasteTarget = makePasteTarget(for: apiKeyField)
-    private lazy var secretPasteTarget: CredentialPasteTarget = makePasteTarget(for: secretField)
-
+    // control itself, bypassing the per-app "Paste from Other Apps" policy (confirmed set to a
+    // silent Deny on this build: the clipboard reports hasStrings=true but every read is redacted
+    // to nil). The control targets its field directly — the field is a live responder in the
+    // window, which is what the control needs in order to enable and to receive the paste.
     private lazy var apiKeyPasteView: UIView = makePasteView(
-        target: apiKeyPasteTarget,
+        for: apiKeyField,
         manualAction: #selector(pasteAPIKeyManually)
     )
     private lazy var secretPasteView: UIView = makePasteView(
-        target: secretPasteTarget,
+        for: secretField,
         manualAction: #selector(pasteSecretManually)
     )
 
@@ -192,8 +189,8 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         return sectionView
     }
 
-    private func makeTextField(placeholder: String, secure: Bool) -> UITextField {
-        let textField = UITextField()
+    private func makeTextField(placeholder: String, secure: Bool) -> CredentialTextField {
+        let textField = CredentialTextField()
         textField.translatesAutoresizingMaskIntoConstraints = false
         textField.placeholder = placeholder
         textField.borderStyle = .roundedRect
@@ -206,6 +203,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         textField.keyboardType = .asciiCapable
         textField.textContentType = .oneTimeCode
         textField.isSecureTextEntry = secure
+        textField.onPasteFailure = { [weak self] in self?.presentPasteFailure() }
         textField.heightAnchor.constraint(equalToConstant: 44).isActive = true
         return textField
     }
@@ -226,14 +224,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
         return button
     }
 
-    private func makePasteTarget(for field: UITextField) -> CredentialPasteTarget {
-        let target = CredentialPasteTarget()
-        target.textField = field
-        target.onFailure = { [weak self] in self?.presentPasteFailure() }
-        return target
-    }
-
-    private func makePasteView(target: CredentialPasteTarget, manualAction: Selector) -> UIView {
+    private func makePasteView(for field: UITextField, manualAction: Selector) -> UIView {
         if #available(iOS 16.0, *) {
             let configuration = UIPasteControl.Configuration()
             configuration.baseBackgroundColor = view.tintColor.withAlphaComponent(0.08)
@@ -243,7 +234,7 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
 
             let pasteControl = UIPasteControl(configuration: configuration)
             pasteControl.translatesAutoresizingMaskIntoConstraints = false
-            pasteControl.target = target
+            pasteControl.target = field
             pasteControl.heightAnchor.constraint(equalToConstant: 44).isActive = true
             return pasteControl
         }
@@ -278,10 +269,18 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
 
     private func presentPasteFailure() {
         let alertController = UIAlertController(
-            title: NSLocalizedString("Nothing to Paste", comment: "TSBinanceAccountViewController"),
-            message: NSLocalizedString("The clipboard is empty or its contents could not be read. Copy your API Key or Secret again, then tap Paste.", comment: "TSBinanceAccountViewController"),
+            title: NSLocalizedString("Couldn’t Paste", comment: "TSBinanceAccountViewController"),
+            message: NSLocalizedString("BinanceHUD is blocked from reading the clipboard. In iOS Settings, open BinanceHUD and set “Paste from Other Apps” to Allow, then try again.", comment: "TSBinanceAccountViewController"),
             preferredStyle: .alert
         )
+        alertController.addAction(UIAlertAction(
+            title: NSLocalizedString("Open Settings", comment: "TSBinanceAccountViewController"),
+            style: .default,
+            handler: { _ in
+                guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+                UIApplication.shared.open(settingsURL, options: [:])
+            }
+        ))
         alertController.addAction(UIAlertAction(
             title: NSLocalizedString("Dismiss", comment: "TSBinanceAccountViewController"),
             style: .cancel
@@ -453,20 +452,30 @@ final class TSBinanceAccountViewController: UIViewController, UIGestureRecognize
     }
 }
 
-private final class CredentialPasteTarget: UIResponder {
-    weak var textField: UITextField?
-    var onFailure: (() -> Void)?
+private final class CredentialTextField: UITextField {
+    var onPasteFailure: (() -> Void)?
 
-    override init() {
-        super.init()
-        // Declaring an accepting configuration is what enables the UIPasteControl whenever the
-        // clipboard holds text, and it scopes the privileged paste to plain strings.
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        configurePaste()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configurePaste()
+    }
+
+    private func configurePaste() {
+        // Declaring an accepting configuration is what enables a UIPasteControl targeting this
+        // field whenever the clipboard holds text, and it scopes the privileged paste to strings.
         pasteConfiguration = UIPasteConfiguration(forAccepting: NSString.self)
     }
 
+    // UIPasteControl delivers its privileged paste through paste(itemProviders:), not the
+    // edit-menu paste(_:). Handling it here lets the granted (unredacted) string land in the field.
     override func paste(itemProviders: [NSItemProvider]) {
         guard let provider = itemProviders.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else {
-            DispatchQueue.main.async { [weak self] in self?.onFailure?() }
+            DispatchQueue.main.async { [weak self] in self?.onPasteFailure?() }
             return
         }
 
@@ -474,11 +483,11 @@ private final class CredentialPasteTarget: UIResponder {
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 guard let text = (object as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
-                    self.onFailure?()
+                    self.onPasteFailure?()
                     return
                 }
-                self.textField?.text = text
-                self.textField?.sendActions(for: .editingChanged)
+                self.text = text
+                self.sendActions(for: .editingChanged)
             }
         }
     }

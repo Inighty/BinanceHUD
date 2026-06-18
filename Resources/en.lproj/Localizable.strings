@@ -35,6 +35,9 @@
 "Nothing to Paste" = "Nothing to Paste";
 "The clipboard is empty or its contents could not be read. Copy your API Key or Secret again, then tap Paste." = "The clipboard is empty or its contents could not be read. Copy your API Key or Secret again, then tap Paste.";
 "Paste" = "Paste";
+"Couldn’t Paste" = "Couldn’t Paste";
+"BinanceHUD is blocked from reading the clipboard. In iOS Settings, open BinanceHUD and set “Paste from Other Apps” to Allow, then try again." = "BinanceHUD is blocked from reading the clipboard. In iOS Settings, open BinanceHUD and set “Paste from Other Apps” to Allow, then try again.";
+"Open Settings" = "Open Settings";
 "Exit HUD" = "Exit HUD";
 "Follow" = "Follow";
 "Hide" = "Hide";
