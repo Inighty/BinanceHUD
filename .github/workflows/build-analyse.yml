@@ -1,8 +1,7 @@
 name: Xcode - Build and Analyze
 
 on:
-  push:
-    branches: [ "main" ]
+  workflow_dispatch:
   pull_request:
     branches: [ "main" ]
 
@@ -12,7 +11,7 @@ env:
 jobs:
   build:
     name: Build and analyse using xcodebuild command
-    runs-on: macos-15
+    runs-on: macos-latest
 
     steps:
       - name: Setup Xcode version
