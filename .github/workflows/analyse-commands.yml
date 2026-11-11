@@ -9,12 +9,12 @@ env:
   THEOS: ''
   GIT_TAG: ''
   GIT_COMMIT: ''
-  XCODE_VERSION: '15.4'
+  XCODE_VERSION: 'latest-stable'
 
 jobs:
   build:
     name: Build and generate compilation database
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
       - name: Setup Xcode version

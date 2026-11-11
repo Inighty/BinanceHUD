@@ -3,6 +3,8 @@ name: Build Release
 on:
   workflow_dispatch:
   push:
+    branches:
+      - "main"
     tags:
       - "v*.*"
       - "v*.*.*"
@@ -10,12 +12,12 @@ on:
 env:
   THEOS: ''
   PKG_VERSION: ''
-  XCODE_VERSION: '15.4'
+  XCODE_VERSION: 'latest-stable'
 
 jobs:
   build:
     name: Build and upload release package for TrollStore
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
       - name: Setup Xcode version
