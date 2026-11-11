@@ -298,7 +298,7 @@ final class TSBinancePositionService: NSObject {
             lines.append("notes:")
             lines.append("  pnl uses Binance /fapi/v3/positionRisk unRealizedProfit when present.")
             lines.append("  mark uses REST snapshot plus public mark-price stream updates.")
-            lines.append("  centered HUD without focus shows display[0].")
+            lines.append("  HUD displays all open positions.")
         }
 
         return lines.joined(separator: "\n")
@@ -381,9 +381,8 @@ final class TSBinancePositionService: NSObject {
                 attributed.append(NSAttributedString(string: NSLocalizedString("No open futures positions", comment: "TSBinancePositionService"), attributes: baseAttributes))
                 return attributed
             }
-            let visibleCount = centered ? 1 : min(entries.count, focused ? 2 : 3)
-            visibleEntries = Array(entries.prefix(visibleCount))
-            remainingCount = entries.count - visibleEntries.count
+            visibleEntries = entries
+            remainingCount = 0
             forceCentered = false
         }
 
@@ -394,12 +393,10 @@ final class TSBinancePositionService: NSObject {
 
             let mainLine = mainLineText(for: entry, options: options)
             attributed.append(NSAttributedString(string: mainLine, attributes: baseAttributes))
-        }
 
-        let primaryEntry = visibleEntries[0]
-
-        if (focused || centered || forceCentered), let secondaryLine = secondaryLineText(for: primaryEntry, options: options) {
-            attributed.append(NSAttributedString(string: "\n" + secondaryLine, attributes: detailAttributes))
+            if (focused || centered || forceCentered), let secondaryLine = secondaryLineText(for: entry, options: options) {
+                attributed.append(NSAttributedString(string: "\n" + secondaryLine, attributes: detailAttributes))
+            }
         }
 
         if remainingCount > 0 {
